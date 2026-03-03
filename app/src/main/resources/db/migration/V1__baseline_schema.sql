@@ -21,14 +21,6 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- pgvector registers an implicit cast text→vector but NOT varchar→vector.
--- Hibernate sends Java String as varchar; this cast prevents type errors.
-DO $$ BEGIN
-    CREATE CAST (varchar AS vector) WITH INOUT AS IMPLICIT;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
-
-
 -- ============================================================
 -- COMMUNITIES
 -- ============================================================
