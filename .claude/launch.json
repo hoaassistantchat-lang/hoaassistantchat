@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "postgres",
+      "runtimeExecutable": "docker-compose",
+      "runtimeArgs": ["up", "-d"],
+      "port": 5432
+    },
+    {
+      "name": "hoa-app",
+      "runtimeExecutable": "mvn",
+      "runtimeArgs": ["spring-boot:run", "-pl", "app"],
+      "port": 8080
+    }
+  ]
+}

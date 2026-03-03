@@ -1,0 +1,2249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HOA Assistant – Admin Dashboard</title>
+  <style>
+    /* ── Reset & tokens ─────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:   #2563eb;
+      --primary-d: #1d4ed8;
+      --success:   #16a34a;
+      --warning:   #d97706;
+      --danger:    #dc2626;
+      --info:      #0891b2;
+      --bg:        #f1f5f9;
+      --surface:   #ffffff;
+      --border:    #e2e8f0;
+      --text:      #1e293b;
+      --muted:     #64748b;
+      --radius:    10px;
+      --shadow:    0 2px 12px rgba(0,0,0,.07);
+      --font:      'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text);
+           display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ── Login screen ────────────────────────────── */
+    #login-screen {
+      flex: 1; display: flex; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .login-card {
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 2rem; width: 100%; max-width: 380px;
+    }
+    .login-card .logo { font-size: 2rem; text-align: center; margin-bottom: .5rem; }
+    .login-card h1 { text-align: center; font-size: 1.3rem; margin-bottom: .2rem; }
+    .login-card p { text-align: center; color: var(--muted); font-size: .85rem; margin-bottom: 1.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: .8rem; font-weight: 600;
+                        color: var(--muted); margin-bottom: .3rem; }
+    .form-group input, .form-group select {
+      width: 100%; padding: .6rem .75rem; border: 1px solid var(--border);
+      border-radius: 7px; font-size: .95rem; outline: none; transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+    .btn-primary {
+      width: 100%; padding: .7rem; background: var(--primary); color: #fff;
+      border: none; border-radius: 7px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background .2s;
+    }
+    .btn-primary:hover { background: var(--primary-d); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    .login-error {
+      background: #fef2f2; border: 1px solid #fecaca; color: var(--danger);
+      border-radius: 7px; padding: .6rem .75rem; font-size: .85rem; margin-top: .75rem;
+      display: none;
+    }
+
+    /* ── App shell ───────────────────────────────── */
+    #app { display: none; flex-direction: column; min-height: 100vh; }
+
+    /* Top nav */
+    .topnav {
+      background: var(--primary); color: #fff; padding: .75rem 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15); position: sticky; top: 0; z-index: 100;
+    }
+    .topnav .brand { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: .5rem; }
+    .topnav .brand span { font-size: .8rem; font-weight: 400; opacity: .8; }
+    .topnav-actions { display: flex; gap: .75rem; align-items: center; }
+    .topnav-actions a {
+      color: rgba(255,255,255,.85); text-decoration: none; font-size: .85rem;
+      padding: .4rem .75rem; border-radius: 6px; transition: background .2s;
+    }
+    .topnav-actions a:hover { background: rgba(255,255,255,.15); color: #fff; }
+    .logout-btn {
+      background: rgba(255,255,255,.15); border: none; color: #fff; cursor: pointer;
+      padding: .4rem .85rem; border-radius: 6px; font-size: .85rem; font-weight: 600;
+      transition: background .2s;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,.25); }
+    .admin-badge {
+      background: rgba(255,255,255,.2); font-size: .75rem; padding: .2rem .6rem;
+      border-radius: 999px; font-weight: 600;
+    }
+
+    /* Side nav + main layout */
+    .layout { display: flex; flex: 1; }
+    .sidenav {
+      width: 220px; background: var(--surface); border-right: 1px solid var(--border);
+      padding: 1.25rem .75rem; display: flex; flex-direction: column; gap: .25rem;
+      position: sticky; top: 50px; height: calc(100vh - 50px); overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidenav-section { font-size: .7rem; font-weight: 700; color: var(--muted);
+                       text-transform: uppercase; letter-spacing: .08em;
+                       padding: .75rem .5rem .3rem; }
+    .nav-item {
+      display: flex; align-items: center; gap: .65rem; padding: .55rem .75rem;
+      border-radius: 7px; font-size: .9rem; color: var(--muted); cursor: pointer;
+      border: none; background: transparent; width: 100%; text-align: left;
+      transition: all .15s; font-family: var(--font);
+    }
+    .nav-item:hover { background: #f1f5f9; color: var(--text); }
+    .nav-item.active { background: #eff6ff; color: var(--primary); font-weight: 600; }
+    .nav-item .icon { font-size: 1.1rem; flex-shrink: 0; }
+
+    /* Main content */
+    .main { flex: 1; padding: 1.75rem 2rem; overflow-y: auto; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .page-header { margin-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.4rem; font-weight: 700; }
+    .page-header p { color: var(--muted); font-size: .9rem; margin-top: .2rem; }
+
+    /* ── Stat cards ──────────────────────────────── */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1rem; margin-bottom: 1.75rem;
+    }
+    .stat-card {
+      background: var(--surface); border-radius: var(--radius); padding: 1.25rem;
+      box-shadow: var(--shadow); border-left: 4px solid var(--primary);
+    }
+    .stat-card.success { border-left-color: var(--success); }
+    .stat-card.warning { border-left-color: var(--warning); }
+    .stat-card.info    { border-left-color: var(--info); }
+    .stat-card .label { font-size: .78rem; font-weight: 600; color: var(--muted);
+                        text-transform: uppercase; letter-spacing: .05em; }
+    .stat-card .value { font-size: 2rem; font-weight: 700; margin: .2rem 0; }
+    .stat-card .sub   { font-size: .8rem; color: var(--muted); }
+
+    /* ── Tables ──────────────────────────────────── */
+    .card {
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+      overflow: hidden; margin-bottom: 1.5rem;
+    }
+    .card-header {
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+      flex-wrap: wrap;
+    }
+    .card-header h2 { font-size: 1rem; font-weight: 700; }
+    .card-tools { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .filter-select {
+      padding: .4rem .65rem; border: 1px solid var(--border); border-radius: 6px;
+      font-size: .85rem; background: var(--surface); color: var(--text); cursor: pointer;
+    }
+    .search-input {
+      padding: .4rem .75rem; border: 1px solid var(--border); border-radius: 6px;
+      font-size: .85rem; outline: none; min-width: 180px; transition: border-color .2s;
+    }
+    .search-input:focus { border-color: var(--primary); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: .75rem 1.25rem; text-align: left; font-size: .875rem; }
+    th { background: #f8fafc; font-weight: 700; color: var(--muted);
+         font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+         border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+    .empty-row td { text-align: center; color: var(--muted); padding: 2rem; font-size: .9rem; }
+
+    /* Badges */
+    .badge {
+      display: inline-block; padding: .2rem .6rem; border-radius: 999px;
+      font-size: .75rem; font-weight: 700; letter-spacing: .03em;
+    }
+    .badge-open       { background: #fef9c3; color: #854d0e; }
+    .badge-progress   { background: #dbeafe; color: #1d4ed8; }
+    .badge-resolved   { background: #dcfce7; color: #15803d; }
+    .badge-closed     { background: #f1f5f9; color: #475569; }
+    .badge-urgent     { background: #fee2e2; color: #b91c1c; }
+    .badge-high       { background: #fef3c7; color: #92400e; }
+    .badge-normal     { background: #f0fdf4; color: #15803d; }
+    .badge-low        { background: #f8fafc; color: #64748b; }
+    .badge-active     { background: #dcfce7; color: #15803d; }
+    .badge-inactive   { background: #fee2e2; color: #b91c1c; }
+    .badge-admin      { background: #eff6ff; color: #1d4ed8; }
+    .badge-resident   { background: #f0fdf4; color: #15803d; }
+    .badge-pdf        { background: #fef2f2; color: #b91c1c; }
+    .badge-url        { background: #eff6ff; color: #1d4ed8; }
+    .badge-general    { background: #f8fafc; color: #64748b; }
+
+    /* ── Tab toggle ──────────────────────────────── */
+    .tab-pills { display: flex; gap: .35rem; }
+    .tab-pill {
+      padding: .35rem .85rem; border-radius: 999px; border: 1px solid var(--border);
+      background: transparent; font-size: .85rem; font-weight: 600; cursor: pointer;
+      color: var(--muted); transition: all .15s;
+    }
+    .tab-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* Action buttons */
+    .btn-sm {
+      padding: .3rem .65rem; border-radius: 5px; border: none; font-size: .8rem;
+      font-weight: 600; cursor: pointer; transition: all .15s;
+    }
+    .btn-sm.primary  { background: var(--primary); color: #fff; }
+    .btn-sm.primary:hover { background: var(--primary-d); }
+    .btn-sm.success  { background: var(--success); color: #fff; }
+    .btn-sm.success:hover { background: #15803d; }
+    .btn-sm.warning  { background: var(--warning); color: #fff; }
+    .btn-sm.warning:hover { background: #b45309; }
+    .btn-sm.danger   { background: var(--danger); color: #fff; }
+    .btn-sm.danger:hover { background: #b91c1c; }
+    .btn-sm.ghost    { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm.ghost:hover { background: var(--bg); }
+
+    /* Select inline */
+    .status-select {
+      padding: .3rem .5rem; border: 1px solid var(--border); border-radius: 5px;
+      font-size: .82rem; background: var(--surface); cursor: pointer;
+    }
+
+    /* ── Upload form ─────────────────────────────── */
+    .upload-area {
+      border: 2px dashed var(--border); border-radius: var(--radius); padding: 2rem;
+      text-align: center; cursor: pointer; transition: border-color .2s; margin-bottom: 1rem;
+    }
+    .upload-area:hover, .upload-area.dragging { border-color: var(--primary); background: #eff6ff; }
+    .upload-area .icon { font-size: 2.5rem; margin-bottom: .5rem; }
+    .upload-area p { color: var(--muted); font-size: .9rem; }
+    .upload-area strong { color: var(--primary); }
+    #file-input { display: none; }
+
+    /* ── Modal ───────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200;
+      display: none; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border-radius: var(--radius); padding: 1.5rem;
+      max-width: 440px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,.2);
+    }
+    .modal h3 { margin-bottom: 1rem; font-size: 1.1rem; }
+    .modal-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1.25rem; }
+
+    /* ── Toast ───────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1e293b; color: #fff;
+      padding: .7rem 1.25rem; border-radius: 8px; font-size: .875rem; z-index: 9999;
+      opacity: 0; transition: opacity .3s; pointer-events: none; max-width: 320px;
+    }
+    .toast.show { opacity: 1; }
+    .toast.success { background: var(--success); }
+    .toast.error   { background: var(--danger); }
+
+    /* ── Responsive ──────────────────────────────── */
+    /* ── Large modal ─────────────────────────────── */
+    .modal-lg { max-width: 680px; max-height: 90vh; overflow-y: auto; }
+    .modal-section {
+      font-size: .7rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .07em;
+      padding: .75rem 0 .35rem; border-top: 1px solid var(--border); margin-top: .5rem;
+    }
+    .modal-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+    .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .65rem; }
+    .form-grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: .65rem; }
+    .modal .form-group { margin-bottom: 0; }
+    .modal .form-group label { font-size: .75rem; }
+    .modal .form-group input, .modal .form-group select, .modal .form-group textarea {
+      width: 100%; padding: .5rem .7rem; border: 1px solid var(--border);
+      border-radius: 6px; font-size: .875rem; outline: none; transition: border-color .2s;
+      font-family: var(--font);
+    }
+    .modal .form-group input:focus, .modal .form-group select:focus { border-color: var(--primary); }
+
+    /* ── PMC cards ───────────────────────────────── */
+    .pmc-card {
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+      border-left: 4px solid var(--primary); padding: 1rem 1.25rem;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 1rem; margin-bottom: .75rem; flex-wrap: wrap;
+    }
+    .pmc-card.inactive { border-left-color: var(--muted); opacity: .7; }
+    .pmc-card-info { flex: 1; min-width: 200px; }
+    .pmc-card-name { font-size: 1rem; font-weight: 700; margin-bottom: .2rem; }
+    .pmc-card-sub { font-size: .82rem; color: var(--muted); }
+    .pmc-card-contacts { font-size: .8rem; color: var(--muted); margin-top: .35rem; }
+    .pmc-card-actions { display: flex; gap: .4rem; flex-wrap: wrap; align-items: flex-start; padding-top: .1rem; }
+
+    /* ── Code snippet box ────────────────────────── */
+    .snippet-box {
+      background: #0f172a; color: #e2e8f0; border-radius: 8px;
+      padding: 1rem 1.25rem; font-family: 'Menlo', 'Consolas', monospace;
+      font-size: .78rem; line-height: 1.7; overflow-x: auto;
+      white-space: pre; position: relative;
+    }
+    .snippet-copy {
+      position: absolute; top: .6rem; right: .75rem;
+      background: rgba(255,255,255,.12); border: none; color: #e2e8f0;
+      border-radius: 5px; padding: .25rem .65rem; font-size: .75rem;
+      cursor: pointer; transition: background .2s;
+    }
+    .snippet-copy:hover { background: rgba(255,255,255,.2); }
+    .key-reveal {
+      font-family: 'Menlo', 'Consolas', monospace; font-size: .85rem;
+      background: #f8fafc; border: 1px solid var(--border); border-radius: 6px;
+      padding: .45rem .75rem; word-break: break-all; color: var(--text);
+    }
+
+    @media (max-width: 768px) {
+      .sidenav { display: none; }
+      .main { padding: 1rem; }
+      th, td { padding: .6rem .75rem; font-size: .82rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ─────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="logo">🏘️</div>
+    <h1>Admin Dashboard</h1>
+    <p>HOA Assistant — Admin Portal</p>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="l-email" placeholder="admin@sunsethills.hoa" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="l-password" placeholder="••••••••"
+             onkeydown="if(event.key==='Enter') doAdminLogin()" />
+    </div>
+    <button class="btn-primary" onclick="doAdminLogin()">Sign In as Admin</button>
+    <div class="login-error" id="login-error"></div>
+    <p style="text-align:center;margin-top:1rem;font-size:.85rem;">
+      <a href="/" style="color:var(--primary);">← Back to Home</a>
+    </p>
+  </div>
+</div>
+
+<!-- ── APP SHELL ─────────────────────────────────────────────── -->
+<div id="app">
+  <!-- Top nav -->
+  <nav class="topnav">
+    <div class="brand">🏘️ HOA Assistant <span>Admin Dashboard</span></div>
+    <div class="topnav-actions">
+      <span class="admin-badge" id="admin-badge">Admin</span>
+      <a href="/index.html">🏠 Home</a>
+      <button class="logout-btn" onclick="doLogout()">Logout</button>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <!-- Side nav -->
+    <nav class="sidenav">
+      <div class="sidenav-section">Overview</div>
+      <button class="nav-item active" onclick="showPage('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </button>
+
+      <div class="sidenav-section">Management</div>
+      <button class="nav-item" onclick="showPage('tickets')">
+        <span class="icon">🎫</span> Tickets
+      </button>
+      <button class="nav-item" onclick="showPage('pmc')">
+        <span class="icon">🏢</span> Property Mgmt
+      </button>
+      <button class="nav-item" onclick="showPage('communities')">
+        <span class="icon">🏘️</span> Communities
+      </button>
+      <button class="nav-item" onclick="showPage('residents')">
+        <span class="icon">👥</span> Residents
+      </button>
+      <button class="nav-item" onclick="showPage('documents')">
+        <span class="icon">📄</span> Documents
+      </button>
+      <button class="nav-item" onclick="showPage('widget')">
+        <span class="icon">🔌</span> Widget Partners
+      </button>
+    </nav>
+
+    <!-- Main content -->
+    <main class="main">
+
+      <!-- ── DASHBOARD PAGE ─────────────────────── -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <h1>Dashboard</h1>
+          <p id="community-info">Loading…</p>
+        </div>
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card warning">
+            <div class="label">Open Tickets</div>
+            <div class="value" id="stat-open">–</div>
+            <div class="sub">Awaiting action</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">In Progress</div>
+            <div class="value" id="stat-progress">–</div>
+            <div class="sub">Being handled</div>
+          </div>
+          <div class="stat-card success">
+            <div class="label">Resolved</div>
+            <div class="value" id="stat-resolved">–</div>
+            <div class="sub">Closed tickets</div>
+          </div>
+          <div class="stat-card info">
+            <div class="label">Residents</div>
+            <div class="value" id="stat-residents">–</div>
+            <div class="sub">Active accounts</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Documents</div>
+            <div class="value" id="stat-docs">–</div>
+            <div class="sub" id="stat-docs-sub">Uploaded</div>
+          </div>
+        </div>
+
+        <!-- Recent tickets preview -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Recent Open Tickets</h2>
+            <button class="btn-sm primary" onclick="showPage('tickets')">View All</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Type</th><th>Description</th>
+                <th>Priority</th><th>Created</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="recent-tickets-body">
+              <tr class="empty-row"><td colspan="6">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── TICKETS PAGE ───────────────────────── -->
+      <div id="page-tickets" class="page">
+        <div class="page-header">
+          <h1>Tickets</h1>
+          <p>View and manage all support tickets</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>All Tickets</h2>
+            <div class="card-tools">
+              <input class="search-input" id="ticket-search" placeholder="Search tickets…"
+                     oninput="filterTickets()" />
+              <select class="filter-select" id="ticket-status-filter" onchange="loadTickets()">
+                <option value="">All Statuses</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Type</th><th>Description</th><th>Location</th>
+                <th>Priority</th><th>Status</th><th>Created</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tickets-body">
+              <tr class="empty-row"><td colspan="8">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── RESIDENTS PAGE ─────────────────────── -->
+      <div id="page-residents" class="page">
+        <div class="page-header">
+          <h1>Residents</h1>
+          <p>Manage resident accounts</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>All Residents</h2>
+            <div class="card-tools">
+              <input class="search-input" id="resident-search" placeholder="Search residents…"
+                     oninput="filterResidents()" />
+              <button class="btn-sm primary" onclick="openAddResidentModal()">+ Add Resident</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Name</th><th>Email</th><th>Unit</th>
+                <th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="residents-body">
+              <tr class="empty-row"><td colspan="8">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── DOCUMENTS PAGE ─────────────────────── -->
+      <div id="page-documents" class="page">
+        <div class="page-header">
+          <h1>Documents</h1>
+          <p>Upload and manage community documents</p>
+        </div>
+
+        <!-- Upload / Ingest card -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Add Document</h2>
+            <div class="tab-pills">
+              <button class="tab-pill active" id="tab-pdf" onclick="showTab('pdf')">📄 Upload PDF</button>
+              <button class="tab-pill" id="tab-url" onclick="showTab('url')">🔗 Add Web URL</button>
+            </div>
+          </div>
+          <div style="padding:1.25rem;">
+
+            <!-- PDF form -->
+            <div id="form-pdf">
+              <div class="upload-area" id="upload-area"
+                   onclick="document.getElementById('file-input').click()"
+                   ondragover="e => {e.preventDefault(); this.classList.add('dragging')}"
+                   ondragleave="this.classList.remove('dragging')"
+                   ondrop="handleDrop(event)">
+                <div class="icon">📁</div>
+                <p><strong>Click to choose a file</strong> or drag and drop here</p>
+                <p style="font-size:.8rem;margin-top:.35rem;">PDF files up to 10 MB</p>
+              </div>
+              <input type="file" id="file-input" accept=".pdf,.txt,.docx"
+                     onchange="onFileSelected(this.files[0])" />
+              <div id="selected-file" style="display:none;margin-bottom:1rem;
+                   background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:.6rem .9rem;
+                   font-size:.875rem;display:flex;justify-content:space-between;align-items:center;">
+                <span id="selected-file-name"></span>
+                <button onclick="clearFile()" style="border:none;background:transparent;cursor:pointer;
+                        color:var(--muted);font-size:1.1rem;">✕</button>
+              </div>
+              <div class="form-group" style="margin-bottom:.75rem;">
+                <label>Community</label>
+                <select id="doc-upload-community" class="filter-select" style="width:100%;padding:.6rem .75rem;">
+                  <option value="">Loading communities…</option>
+                </select>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                <div class="form-group">
+                  <label>Category</label>
+                  <select id="doc-category" class="filter-select" style="width:100%;padding:.6rem .75rem;">
+                    <option value="general">General</option>
+                    <option value="cc-rs">CC&amp;Rs</option>
+                    <option value="bylaws">Bylaws</option>
+                    <option value="financials">Financial Documents</option>
+                    <option value="notices">Notices &amp; Announcements</option>
+                    <option value="minutes">Meeting Minutes</option>
+                    <option value="rules">Rules &amp; Regulations</option>
+                    <option value="forms">Forms &amp; Applications</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Version (optional)</label>
+                  <input type="text" id="doc-version" placeholder="e.g. 2024-Q1" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Description (optional)</label>
+                <input type="text" id="doc-description" placeholder="Brief description of this document" />
+              </div>
+              <button class="btn-sm primary" id="upload-btn" onclick="uploadDocument()"
+                      style="padding:.6rem 1.25rem;font-size:.9rem;" disabled>
+                Upload Document
+              </button>
+            </div>
+
+            <!-- URL ingest form -->
+            <div id="form-url" style="display:none;">
+              <div class="form-group" style="margin-bottom:.75rem;">
+                <label>Community</label>
+                <select id="url-upload-community" class="filter-select" style="width:100%;padding:.6rem .75rem;">
+                  <option value="">Loading communities…</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Page URL *</label>
+                <input type="url" id="url-href" placeholder="https://example.com/hoa-rules"
+                       style="width:100%" />
+              </div>
+              <div class="form-group">
+                <label>Page title / display name</label>
+                <input type="text" id="url-title" placeholder="e.g. HOA Rules &amp; Regulations" />
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+                <div class="form-group">
+                  <label>Category</label>
+                  <select id="url-category" class="filter-select" style="width:100%;padding:.6rem .75rem;">
+                    <option value="general">General</option>
+                    <option value="cc-rs">CC&amp;Rs</option>
+                    <option value="bylaws">Bylaws</option>
+                    <option value="financials">Financial Documents</option>
+                    <option value="notices">Notices &amp; Announcements</option>
+                    <option value="minutes">Meeting Minutes</option>
+                    <option value="rules">Rules &amp; Regulations</option>
+                    <option value="forms">Forms &amp; Applications</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Version (optional)</label>
+                  <input type="text" id="url-version" placeholder="e.g. 2024-Q1" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Description (optional)</label>
+                <input type="text" id="url-description" placeholder="Brief description" />
+              </div>
+              <button class="btn-sm primary" id="url-btn" onclick="ingestUrl()"
+                      style="padding:.6rem 1.25rem;font-size:.9rem;">
+                Add Web Page
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Documents list -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Uploaded Documents</h2>
+            <div class="card-tools">
+              <input class="search-input" id="doc-search" placeholder="Search documents…"
+                     oninput="filterDocuments()" />
+              <select class="filter-select" id="doc-community-filter" onchange="loadDocuments()" style="min-width:140px;">
+                <option value="">All Communities</option>
+              </select>
+              <select class="filter-select" id="doc-category-filter" onchange="loadDocuments()">
+                <option value="">All Categories</option>
+                <option value="general">General</option>
+                <option value="cc-rs">CC&amp;Rs</option>
+                <option value="bylaws">Bylaws</option>
+                <option value="financials">Financials</option>
+                <option value="notices">Notices</option>
+                <option value="minutes">Minutes</option>
+                <option value="rules">Rules</option>
+                <option value="forms">Forms</option>
+              </select>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Filename</th><th>Source</th><th>Category</th><th>Version</th>
+                <th>Size</th><th>Processed</th><th>Uploaded</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="documents-body">
+              <tr class="empty-row"><td colspan="9">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── WIDGET PARTNERS PAGE ───────────────── -->
+      <div id="page-widget" class="page">
+        <div class="page-header">
+          <h1>Widget Partners</h1>
+          <p>Generate API keys for partner websites that embed your HOA chat widget</p>
+        </div>
+
+        <!-- How it works -->
+        <div class="card" style="margin-bottom:1.5rem;">
+          <div class="card-header"><h2>How it works</h2></div>
+          <div style="padding:1.25rem;display:flex;flex-direction:column;gap:.75rem;font-size:.9rem;line-height:1.6;color:var(--muted);">
+            <div>
+              <strong style="color:var(--text);">1. Create an API key</strong> — Give it a name (e.g. "Sunset Hills Website") and list
+              the domains the key is allowed to be used from. Only requests from those domains will be accepted.
+            </div>
+            <div>
+              <strong style="color:var(--text);">2. Share the embed snippet</strong> — Copy the generated <code style="font-size:.82rem;background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;">&lt;script&gt;</code>
+              tag and send it to your partner. They paste it before the closing <code style="font-size:.82rem;background:#f1f5f9;padding:.1rem .35rem;border-radius:4px;">&lt;/body&gt;</code> tag.
+            </div>
+            <div>
+              <strong style="color:var(--text);">3. Revoke any time</strong> — Click Deactivate to instantly disable a key without affecting other partners.
+            </div>
+          </div>
+        </div>
+
+        <!-- Create key form -->
+        <div class="card">
+          <div class="card-header"><h2>Issue New API Key</h2></div>
+          <div style="padding:1.25rem;display:grid;grid-template-columns:1fr 1fr;gap:.75rem;" id="widget-form-grid">
+            <div class="form-group" style="grid-column:1/-1;">
+              <label>Partner / Client Name</label>
+              <input type="text" id="wc-name" placeholder="e.g. Sunset Hills Website" style="width:100%" />
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label>Allowed Domains <span style="font-weight:400;color:var(--muted);">(comma-separated, no protocol — e.g. company.com, www.company.com)</span></label>
+              <input type="text" id="wc-domains" placeholder="company.com, www.company.com" style="width:100%" />
+            </div>
+            <div style="grid-column:1/-1;">
+              <button class="btn-sm primary" onclick="createWidgetClient()" style="padding:.6rem 1.25rem;font-size:.9rem;">
+                Generate API Key
+              </button>
+            </div>
+          </div>
+
+          <!-- Revealed key after creation -->
+          <div id="wc-result" style="display:none;padding:0 1.25rem 1.25rem;">
+            <hr style="border:none;border-top:1px solid var(--border);margin-bottom:1rem;">
+            <p style="font-size:.88rem;font-weight:600;margin-bottom:.5rem;color:var(--success);">✓ API key generated — copy it now, it won't be shown again in plain text.</p>
+            <div class="key-reveal" id="wc-key-display"></div>
+            <p style="font-size:.82rem;color:var(--muted);margin:.6rem 0 .75rem;">Embed snippet to send to the partner:</p>
+            <div class="snippet-box" id="wc-snippet">
+              <button class="snippet-copy" onclick="copySnippet()">Copy</button>
+              <span id="wc-snippet-text"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Existing keys table -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Active API Keys</h2>
+            <button class="btn-sm ghost" onclick="loadWidgetClients()">↺ Refresh</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Name</th><th>API Key (prefix)</th>
+                <th>Allowed Domains</th><th>Status</th><th>Created</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="widget-clients-body">
+              <tr class="empty-row"><td colspan="7">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── PROPERTY MGMT PAGE ──────────────── -->
+      <div id="page-pmc" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+          <div>
+            <h1>Property Management</h1>
+            <p>Manage property management companies, communities, and residents</p>
+          </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <button class="btn-sm primary" onclick="openCreatePmcModal()"
+                    style="padding:.6rem 1.25rem;font-size:.9rem;white-space:nowrap;">
+              + Register PMC
+            </button>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">Total PMCs</div>
+            <div class="value" id="pmc-stat-total">–</div>
+            <div class="sub">Registered</div>
+          </div>
+          <div class="stat-card info">
+            <div class="label">Communities</div>
+            <div class="value" id="pmc-stat-communities">–</div>
+            <div class="sub" id="pmc-stat-communities-sub">Total</div>
+          </div>
+        </div>
+
+        <!-- PMC list -->
+        <div class="card">
+          <div class="card-header">
+            <h2>Property Management Companies</h2>
+            <button class="btn-sm primary" onclick="openCreatePmcModal()">+ Register PMC</button>
+          </div>
+          <div id="pmc-list" style="padding:.5rem 0;">
+            <div style="text-align:center;padding:3rem;color:var(--muted);">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COMMUNITIES PAGE ────────────────── -->
+      <div id="page-communities" class="page">
+        <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+          <div>
+            <h1>Communities</h1>
+            <p>Manage HOA communities and their PMC assignments</p>
+          </div>
+          <button class="btn-sm primary" onclick="openCreateCommunityModal()"
+                  style="padding:.6rem 1.25rem;font-size:.9rem;">
+            + Add Community
+          </button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="label">Active Communities</div>
+            <div class="value" id="comm-stat-total">–</div>
+            <div class="sub" id="comm-stat-total-sub">Total in system</div>
+          </div>
+          <div class="stat-card success">
+            <div class="label">Assigned to PMC</div>
+            <div class="value" id="comm-stat-assigned">–</div>
+            <div class="sub">With management</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>All Communities</h2>
+            <button class="btn-sm ghost" onclick="loadCommunities()">↺ Refresh</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Community Name</th><th>Slug</th><th>Status</th><th>Assigned PMC</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="communities-table-body">
+              <tr class="empty-row"><td colspan="6">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ── EDIT METADATA MODAL ────────────────────────────────────── -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h3>Edit Document Metadata</h3>
+    <div class="form-group" style="margin-top:.5rem;">
+      <label>Category</label>
+      <select id="edit-category" class="filter-select" style="width:100%;padding:.55rem .75rem;">
+        <option value="general">General</option>
+        <option value="cc-rs">CC&amp;Rs</option>
+        <option value="bylaws">Bylaws</option>
+        <option value="financials">Financial Documents</option>
+        <option value="notices">Notices &amp; Announcements</option>
+        <option value="minutes">Meeting Minutes</option>
+        <option value="rules">Rules &amp; Regulations</option>
+        <option value="forms">Forms &amp; Applications</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <input type="text" id="edit-description" style="width:100%" placeholder="Brief description" />
+    </div>
+    <div class="form-group">
+      <label>Version</label>
+      <input type="text" id="edit-version" style="width:100%" placeholder="e.g. 2024-Q1" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm ghost" onclick="closeEditModal()">Cancel</button>
+      <button class="btn-sm primary" onclick="saveEditModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ARCHIVE CONFIRM MODAL ─────────────────────────────────── -->
+<div class="modal-overlay" id="archive-modal">
+  <div class="modal">
+    <h3>Archive Document?</h3>
+    <p style="color:var(--muted);font-size:.9rem;line-height:1.5;">
+      This will hide the document from the listing and disable it for AI search.
+      The file is kept on disk and can be recovered by an engineer if needed.
+    </p>
+    <div class="modal-actions">
+      <button class="btn-sm ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-sm danger" id="confirm-archive-btn" onclick="confirmArchive()">Archive</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE COMMUNITY MODAL ────────────────────────────────── -->
+<div class="modal-overlay" id="community-create-modal">
+  <div class="modal">
+    <h3>Add Community</h3>
+    <div class="form-group" style="margin-top:.5rem;">
+      <label>Community Name *</label>
+      <input type="text" id="comm-name" placeholder="Sunset Hills HOA" style="width:100%" />
+    </div>
+    <div class="form-grid-2" style="margin-top:.65rem;">
+      <div class="form-group">
+        <label>Contact Email</label>
+        <input type="email" id="comm-email" placeholder="admin@community.com" />
+      </div>
+      <div class="form-group">
+        <label>Contact Phone</label>
+        <input type="tel" id="comm-phone" placeholder="(555) 000-0000" />
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:.65rem;">
+      <label>Time Zone</label>
+      <select id="comm-timezone" style="width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;font-size:.875rem;outline:none;">
+        <option value="America/Los_Angeles">Pacific — Los Angeles</option>
+        <option value="America/Denver">Mountain — Denver</option>
+        <option value="America/Chicago">Central — Chicago</option>
+        <option value="America/New_York">Eastern — New York</option>
+        <option value="America/Phoenix">Arizona — Phoenix</option>
+        <option value="America/Anchorage">Alaska — Anchorage</option>
+        <option value="Pacific/Honolulu">Hawaii — Honolulu</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-top:.65rem;">
+      <label>Office Hours</label>
+      <input type="text" id="comm-hours" placeholder="Mon–Fri 9am–5pm" style="width:100%" />
+    </div>
+    <div class="form-group" style="margin-top:.65rem;">
+      <label>Emergency Contact</label>
+      <input type="text" id="comm-emergency" placeholder="24/7 emergency: (555) 911-0000" style="width:100%" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm ghost" onclick="closeCreateCommunityModal()">Cancel</button>
+      <button class="btn-sm primary" id="comm-submit-btn" onclick="submitCreateCommunity()">Create Community</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ASSIGN COMMUNITY TO PMC MODAL ─────────────────────────── -->
+<div class="modal-overlay" id="assign-pmc-modal">
+  <div class="modal">
+    <h3>Assign to PMC</h3>
+    <p id="assign-pmc-community-label"
+       style="font-size:.875rem;color:var(--muted);margin-bottom:.75rem;"></p>
+    <div class="form-group">
+      <label>Select PMC</label>
+      <select id="assign-pmc-select"
+              style="width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;font-size:.875rem;outline:none;">
+        <option value="">Select PMC…</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-top:.65rem;">
+      <label>Notes (optional)</label>
+      <input type="text" id="assign-pmc-notes" placeholder="e.g. Effective Jan 2025"
+             style="width:100%" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-sm ghost" onclick="closeAssignCommunityToPmc()">Cancel</button>
+      <button class="btn-sm primary" id="assign-pmc-submit" onclick="submitAssignCommunityToPmc()">Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CREATE / EDIT PMC MODAL ───────────────────────────────── -->
+<div class="modal-overlay" id="pmc-create-modal">
+  <div class="modal modal-lg">
+    <h3 id="pmc-modal-title">Register New PMC</h3>
+
+    <div class="modal-section">Basic Info</div>
+    <div class="form-group">
+      <label>Company Name *</label>
+      <input type="text" id="pmc-companyName" placeholder="Sunrise Property Management" style="width:100%" />
+    </div>
+    <div class="form-grid-2" style="margin-top:.65rem;">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="pmc-email" placeholder="contact@pmc.com" />
+      </div>
+      <div class="form-group">
+        <label>Website</label>
+        <input type="url" id="pmc-website" placeholder="https://sunrise-pmc.com" />
+      </div>
+    </div>
+
+    <div class="modal-section">Location</div>
+    <div class="form-group">
+      <label>Street Address</label>
+      <input type="text" id="pmc-address" placeholder="123 Main St" style="width:100%" />
+    </div>
+    <div class="form-grid-3" style="margin-top:.65rem;">
+      <div class="form-group">
+        <label>City</label>
+        <input type="text" id="pmc-city" placeholder="Los Angeles" />
+      </div>
+      <div class="form-group">
+        <label>State</label>
+        <input type="text" id="pmc-state" placeholder="CA" />
+      </div>
+      <div class="form-group">
+        <label>ZIP</label>
+        <input type="text" id="pmc-zip" placeholder="90001" />
+      </div>
+    </div>
+
+    <div class="modal-section">Phone Numbers</div>
+    <div class="form-grid-3">
+      <div class="form-group">
+        <label>Main Office</label>
+        <input type="tel" id="pmc-phoneMain" placeholder="(555) 000-0000" />
+      </div>
+      <div class="form-group">
+        <label>Secondary</label>
+        <input type="tel" id="pmc-phoneSecondary" placeholder="(555) 000-0001" />
+      </div>
+      <div class="form-group">
+        <label>Mobile</label>
+        <input type="tel" id="pmc-phoneMobile" placeholder="(555) 000-0002" />
+      </div>
+    </div>
+
+    <div class="modal-section">Contact 1 <span style="font-weight:400;color:var(--muted);">(Primary)</span></div>
+    <div class="form-grid-4">
+      <div class="form-group" style="grid-column:1/3;">
+        <label>Full Name</label>
+        <input type="text" id="pmc-contact1Name" placeholder="Jane Smith" />
+      </div>
+      <div class="form-group" style="grid-column:3/5;">
+        <label>Title</label>
+        <input type="text" id="pmc-contact1Title" placeholder="Account Manager" />
+      </div>
+      <div class="form-group" style="grid-column:1/3;">
+        <label>Phone</label>
+        <input type="tel" id="pmc-contact1Phone" placeholder="(555) 000-0000" />
+      </div>
+      <div class="form-group" style="grid-column:3/5;">
+        <label>Email</label>
+        <input type="email" id="pmc-contact1Email" placeholder="jane@pmc.com" />
+      </div>
+    </div>
+
+    <div class="modal-section">Contact 2 <span style="font-weight:400;color:var(--muted);">(optional)</span></div>
+    <div class="form-grid-4">
+      <div class="form-group" style="grid-column:1/3;">
+        <label>Full Name</label>
+        <input type="text" id="pmc-contact2Name" />
+      </div>
+      <div class="form-group" style="grid-column:3/5;">
+        <label>Title</label>
+        <input type="text" id="pmc-contact2Title" />
+      </div>
+      <div class="form-group" style="grid-column:1/3;">
+        <label>Phone</label>
+        <input type="tel" id="pmc-contact2Phone" />
+      </div>
+      <div class="form-group" style="grid-column:3/5;">
+        <label>Email</label>
+        <input type="email" id="pmc-contact2Email" />
+      </div>
+    </div>
+
+    <div class="modal-section">Contact 3 <span style="font-weight:400;color:var(--muted);">(optional)</span></div>
+    <div class="form-grid-4">
+      <div class="form-group" style="grid-column:1/3;">
+        <label>Full Name</label>
+        <input type="text" id="pmc-contact3Name" />
+      </div>
+      <div class="form-group" style="grid-column:3/5;">
+        <label>Title</label>
+        <input type="text" id="pmc-contact3Title" />
+      </div>
+      <div class="form-group" style="grid-column:1/3;">
+        <label>Phone</label>
+        <input type="tel" id="pmc-contact3Phone" />
+      </div>
+      <div class="form-group" style="grid-column:3/5;">
+        <label>Email</label>
+        <input type="email" id="pmc-contact3Email" />
+      </div>
+    </div>
+
+    <div class="modal-section">Notes <span style="font-weight:400;color:var(--muted);">(optional)</span></div>
+    <div class="form-group">
+      <textarea id="pmc-notes" rows="2" placeholder="Internal notes about this PMC…"
+                style="resize:vertical;"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-sm ghost" onclick="closeCreatePmcModal()">Cancel</button>
+      <button class="btn-sm primary" id="pmc-modal-submit" onclick="submitPmcForm()">Register PMC</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PMC DETAIL MODAL ───────────────────────────────────────── -->
+<div class="modal-overlay" id="pmc-detail-modal">
+  <div class="modal modal-lg">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem;">
+      <h3 style="margin:0;">PMC Details</h3>
+      <div style="display:flex;gap:.4rem;">
+        <button class="btn-sm ghost" onclick="openEditPmc()">✏ Edit</button>
+        <button class="btn-sm ghost" onclick="closePmcDetail()">✕ Close</button>
+      </div>
+    </div>
+    <div id="pmc-detail-content">
+      <p style="color:var(--muted);">Loading…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── ADD RESIDENT MODAL ─────────────────────────────────────── -->
+<div class="modal-overlay" id="resident-create-modal">
+  <div class="modal">
+    <h3>Add Resident</h3>
+    <div class="form-group" style="margin-top:.5rem;">
+      <label>Community</label>
+      <select id="res-community-select"
+              style="width:100%;padding:.5rem .75rem;border:1px solid var(--border);
+                     border-radius:6px;font-size:.875rem;outline:none;">
+      </select>
+    </div>
+    <div class="form-grid-2" style="margin-top:.65rem;">
+      <div class="form-group">
+        <label>First Name *</label>
+        <input type="text" id="res-firstName" placeholder="Jane" />
+      </div>
+      <div class="form-group">
+        <label>Last Name *</label>
+        <input type="text" id="res-lastName" placeholder="Smith" />
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:.65rem;">
+      <label>Email *</label>
+      <input type="email" id="res-email" placeholder="jane@example.com" style="width:100%" />
+    </div>
+    <div class="form-grid-2" style="margin-top:.65rem;">
+      <div class="form-group">
+        <label>Unit Number</label>
+        <input type="text" id="res-unit" placeholder="101A" />
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="tel" id="res-phone" placeholder="(555) 000-0000" />
+      </div>
+    </div>
+    <p style="font-size:.78rem;color:var(--muted);margin-top:.65rem;line-height:1.5;">
+      A temporary password will be auto-generated. The resident can reset it via Forgot Password.
+    </p>
+    <div class="modal-actions">
+      <button class="btn-sm ghost" onclick="closeAddResidentModal()">Cancel</button>
+      <button class="btn-sm primary" id="res-submit-btn" onclick="submitAddResident()">Add Resident</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─── State ────────────────────────────────── */
+const API = '';
+let accessToken  = localStorage.getItem('hoa_access_token') || null;
+let userProfile  = JSON.parse(localStorage.getItem('hoa_user') || 'null');
+let communityId  = localStorage.getItem('hoa_community_id') || '1';
+let allTickets   = [];
+let allResidents = [];
+let allDocuments = [];
+let pendingArchiveId = null;
+let pendingEditId    = null;
+let selectedFile = null;
+
+/* ─── Init ─────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  if (accessToken && isAdmin()) {
+    showApp();
+  } else {
+    showLogin();
+  }
+});
+
+function isAdmin() {
+  if (!userProfile?.roles) return false;
+  return userProfile.roles.some(r => r === 'ROLE_ADMIN' || r === 'ROLE_SUPER_ADMIN');
+}
+
+/* ─── Auth ─────────────────────────────────── */
+async function doAdminLogin() {
+  const err = document.getElementById('login-error');
+  err.style.display = 'none';
+  const email = document.getElementById('l-email').value.trim();
+  const pass  = document.getElementById('l-password').value;
+  if (!email || !pass) { err.textContent = 'Email and password required.'; err.style.display='block'; return; }
+  try {
+    const res = await apiFetch('/api/auth/login', 'POST',
+      { email, password: pass, communitySlug: null }, false);
+    if (!res.user?.roles?.some(r => r === 'ROLE_ADMIN' || r === 'ROLE_SUPER_ADMIN')) {
+      throw new Error('You do not have admin access.');
+    }
+    accessToken = res.accessToken;
+    userProfile = res.user;
+    communityId = res.user?.communityId?.toString() || '1';
+    localStorage.setItem('hoa_access_token',  accessToken);
+    localStorage.setItem('hoa_refresh_token', res.refreshToken);
+    localStorage.setItem('hoa_user',          JSON.stringify(userProfile));
+    localStorage.setItem('hoa_community_id',  communityId);
+    showApp();
+  } catch(e) {
+    err.textContent = e.message || 'Login failed.';
+    err.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  localStorage.clear();
+  accessToken = null; userProfile = null;
+  document.getElementById('app').style.display = 'none';
+  showLogin();
+}
+
+function showLogin() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+async function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  const name = userProfile?.firstName || userProfile?.email || 'Admin';
+  document.getElementById('admin-badge').textContent = name;
+  loadDashboard();
+}
+
+/* ─── Navigation ────────────────────────────── */
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  const pageKeyMap = {
+    dashboard: 'dashboard', tickets: 'tickets', residents: 'residents',
+    documents: 'documents', widget: 'widget partners', pmc: 'property mgmt',
+    communities: 'communities'
+  };
+  const key = pageKeyMap[page] || page;
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.trim().toLowerCase().includes(key)) n.classList.add('active');
+  });
+  if (page === 'dashboard')    loadDashboard();
+  if (page === 'tickets')      loadTickets();
+  if (page === 'residents')    loadResidents();
+  if (page === 'documents')  { populateDocCommunitySelectors(); loadDocuments(); }
+  if (page === 'widget')       loadWidgetClients();
+  if (page === 'pmc')          loadPmcs();
+  if (page === 'communities')  loadCommunities();
+}
+
+/* ─── Dashboard ─────────────────────────────── */
+async function loadDashboard() {
+  try {
+    const data = await apiFetch('/api/admin/dashboard');
+    document.getElementById('community-info').textContent =
+      `${data.communityName}  ·  Plan: ${data.planTier || 'basic'}`;
+    document.getElementById('stat-open').textContent     = data.openTickets;
+    document.getElementById('stat-progress').textContent = data.inProgressTickets;
+    document.getElementById('stat-resolved').textContent = data.resolvedTickets;
+    document.getElementById('stat-residents').textContent = data.activeResidents;
+    document.getElementById('stat-docs').textContent     = data.totalDocuments;
+    document.getElementById('stat-docs-sub').textContent =
+      `${data.processedDocuments} indexed for AI`;
+
+    // Recent tickets
+    const tickets = await apiFetch(`/api/admin/tickets?status=open`);
+    const tbody = document.getElementById('recent-tickets-body');
+    const recent = tickets.slice(0, 5);
+    if (recent.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No open tickets 🎉</td></tr>';
+    } else {
+      tbody.innerHTML = recent.map(t => `
+        <tr>
+          <td><strong>#${t.id}</strong></td>
+          <td>${escHtml(t.ticketType)}</td>
+          <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            ${escHtml(t.description)}</td>
+          <td><span class="badge badge-${t.priority}">${t.priority}</span></td>
+          <td style="white-space:nowrap">${fmtDate(t.createdAt)}</td>
+          <td>
+            <button class="btn-sm primary" onclick="quickStatus(${t.id},'in_progress')">Start</button>
+          </td>
+        </tr>`).join('');
+    }
+  } catch(e) { showToast('Failed to load dashboard', 'error'); }
+}
+
+/* ─── Tickets ───────────────────────────────── */
+async function loadTickets() {
+  const status = document.getElementById('ticket-status-filter')?.value || '';
+  try {
+    const url = '/api/admin/tickets' + (status ? '?status=' + status : '');
+    allTickets = await apiFetch(url);
+    renderTickets(allTickets);
+  } catch(e) { showToast('Failed to load tickets', 'error'); }
+}
+
+function filterTickets() {
+  const q = document.getElementById('ticket-search').value.toLowerCase();
+  const filtered = allTickets.filter(t =>
+    t.description?.toLowerCase().includes(q) ||
+    t.ticketType?.toLowerCase().includes(q) ||
+    t.location?.toLowerCase().includes(q) ||
+    String(t.id).includes(q)
+  );
+  renderTickets(filtered);
+}
+
+function renderTickets(tickets) {
+  const tbody = document.getElementById('tickets-body');
+  if (!tickets || tickets.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No tickets found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tickets.map(t => `
+    <tr>
+      <td><strong>#${t.id}</strong></td>
+      <td>${escHtml(t.ticketType)}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+          title="${escHtml(t.description)}">${escHtml(t.description)}</td>
+      <td>${t.location ? escHtml(t.location) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td><span class="badge badge-${t.priority}">${t.priority}</span></td>
+      <td>
+        <select class="status-select" onchange="updateTicketStatus(${t.id}, this.value)">
+          ${['open','in_progress','resolved','closed'].map(s =>
+            `<option value="${s}" ${t.status===s?'selected':''}>${s.replace('_',' ')}</option>`
+          ).join('')}
+        </select>
+      </td>
+      <td style="white-space:nowrap">${fmtDate(t.createdAt)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-sm success" onclick="updateTicketStatus(${t.id},'resolved')">Resolve</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function updateTicketStatus(ticketId, status) {
+  try {
+    await apiFetch(`/api/admin/tickets/${ticketId}/status?status=${status}`, 'PATCH');
+    showToast(`Ticket #${ticketId} → ${status.replace('_',' ')}`, 'success');
+    await loadTickets();
+  } catch(e) { showToast('Failed to update ticket', 'error'); }
+}
+
+async function quickStatus(ticketId, status) {
+  await updateTicketStatus(ticketId, status);
+  loadDashboard();
+}
+
+/* ─── Residents ─────────────────────────────── */
+async function loadResidents() {
+  try {
+    allResidents = await apiFetch('/api/admin/residents');
+    renderResidents(allResidents);
+  } catch(e) { showToast('Failed to load residents', 'error'); }
+}
+
+function filterResidents() {
+  const q = document.getElementById('resident-search').value.toLowerCase();
+  const filtered = allResidents.filter(r =>
+    r.email?.toLowerCase().includes(q) ||
+    r.firstName?.toLowerCase().includes(q) ||
+    r.lastName?.toLowerCase().includes(q) ||
+    r.unitNumber?.toLowerCase().includes(q)
+  );
+  renderResidents(filtered);
+}
+
+function renderResidents(residents) {
+  const tbody = document.getElementById('residents-body');
+  if (!residents || residents.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">No residents found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = residents.map(r => {
+    const isAdmin = r.roles?.some(role => role === 'ROLE_ADMIN' || role === 'ROLE_SUPER_ADMIN');
+    const roleBadge = isAdmin
+      ? '<span class="badge badge-admin">Admin</span>'
+      : '<span class="badge badge-resident">Resident</span>';
+    const statusBadge = r.isActive
+      ? '<span class="badge badge-active">Active</span>'
+      : '<span class="badge badge-inactive">Inactive</span>';
+    return `
+    <tr>
+      <td>${r.id}</td>
+      <td>${escHtml((r.firstName || '') + ' ' + (r.lastName || '')).trim() || '<em style="color:var(--muted)">—</em>'}</td>
+      <td>${escHtml(r.email)}</td>
+      <td>${r.unitNumber ? escHtml(r.unitNumber) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${roleBadge}</td>
+      <td>${statusBadge}</td>
+      <td style="white-space:nowrap">${r.lastLoginAt ? fmtDate(r.lastLoginAt) : '<span style="color:var(--muted)">Never</span>'}</td>
+      <td style="white-space:nowrap">
+        ${r.isActive
+          ? `<button class="btn-sm warning" onclick="toggleResident(${r.id}, false)">Deactivate</button>`
+          : `<button class="btn-sm success" onclick="toggleResident(${r.id}, true)">Activate</button>`}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleResident(userId, active) {
+  try {
+    await apiFetch(`/api/admin/residents/${userId}`, 'PATCH', { isActive: active });
+    showToast(`Resident ${active ? 'activated' : 'deactivated'}`, 'success');
+    await loadResidents();
+  } catch(e) { showToast('Failed to update resident', 'error'); }
+}
+
+/* ─── Documents ─────────────────────────────── */
+async function populateDocCommunitySelectors() {
+  try {
+    if (allCommunities.length === 0) {
+      allCommunities = await apiFetch('/api/admin/communities');
+    }
+    const active  = allCommunities.filter(c => c.isActive !== false);
+    const options = active.map(c =>
+      `<option value="${c.id}" ${String(c.id) === communityId ? 'selected' : ''}>${escHtml(c.name)}</option>`
+    ).join('');
+    // Upload selectors
+    document.getElementById('doc-upload-community').innerHTML = options;
+    document.getElementById('url-upload-community').innerHTML = options;
+    // List filter
+    const filter = document.getElementById('doc-community-filter');
+    filter.innerHTML = '<option value="">All Communities</option>' +
+      active.map(c =>
+        `<option value="${c.id}" ${String(c.id) === communityId ? 'selected' : ''}>${escHtml(c.name)}</option>`
+      ).join('');
+  } catch(e) { /* selectors stay as-is */ }
+}
+
+async function loadDocuments() {
+  const selectedComm = document.getElementById('doc-community-filter')?.value || communityId;
+  const cat = document.getElementById('doc-category-filter')?.value || '';
+  try {
+    const url = `/api/documents/community/${selectedComm}` + (cat ? `?category=${cat}` : '');
+    allDocuments = await apiFetch(url);
+    renderDocuments(allDocuments);
+  } catch(e) { showToast('Failed to load documents', 'error'); }
+}
+
+function filterDocuments() {
+  const q = document.getElementById('doc-search').value.toLowerCase();
+  const filtered = allDocuments.filter(d =>
+    d.filename?.toLowerCase().includes(q) ||
+    d.description?.toLowerCase().includes(q) ||
+    d.category?.toLowerCase().includes(q)
+  );
+  renderDocuments(filtered);
+}
+
+function renderDocuments(docs) {
+  const tbody = document.getElementById('documents-body');
+  if (!docs || docs.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No documents found. Upload one above!</td></tr>';
+    return;
+  }
+  tbody.innerHTML = docs.map(d => {
+    const isUrl = d.sourceType === 'url';
+    const sourceBadge = isUrl
+      ? `<span class="badge badge-url">🔗 Web</span>${d.sourceUrl
+          ? ` <a href="${escHtml(d.sourceUrl)}" target="_blank" rel="noopener"
+               style="font-size:.75rem;color:var(--primary);">↗</a>`
+          : ''}`
+      : '<span class="badge badge-pdf">📄 PDF</span>';
+    return `
+    <tr>
+      <td>${d.id}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:.5rem;">
+          <div>
+            <div style="font-weight:600;font-size:.875rem">${escHtml(d.filename)}</div>
+            ${d.description ? `<div style="color:var(--muted);font-size:.78rem">${escHtml(d.description)}</div>` : ''}
+          </div>
+        </div>
+      </td>
+      <td>${sourceBadge}</td>
+      <td><span class="badge badge-${d.category||'general'}">${d.category||'general'}</span></td>
+      <td>${d.version ? escHtml(d.version) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${d.fileSizeBytes ? fmtBytes(d.fileSizeBytes) : '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${d.processed
+        ? '<span class="badge badge-active">✓ Indexed</span>'
+        : '<span class="badge badge-inactive">Pending</span>'}</td>
+      <td style="white-space:nowrap">${fmtDate(d.uploadDate || d.createdAt)}</td>
+      <td style="white-space:nowrap;display:flex;gap:.3rem;flex-wrap:wrap;">
+        ${!d.processed && !isUrl
+          ? `<button class="btn-sm ghost" onclick="reprocessDoc(${d.id})">Process</button>`
+          : ''}
+        ${isUrl
+          ? `<button class="btn-sm ghost" onclick="refreshDoc(${d.id})">↻ Refresh</button>`
+          : ''}
+        <button class="btn-sm ghost" onclick="openEditModal(${d.id},'${escHtml(d.category||'general')}','${escHtml(d.description||'')}','${escHtml(d.version||'')}')">✏ Edit</button>
+        <button class="btn-sm danger" onclick="openArchiveModal(${d.id})">Archive</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ─── Tab toggle ────────────────────────────── */
+function showTab(tab) {
+  document.getElementById('form-pdf').style.display  = tab === 'pdf' ? '' : 'none';
+  document.getElementById('form-url').style.display  = tab === 'url' ? '' : 'none';
+  document.getElementById('tab-pdf').classList.toggle('active', tab === 'pdf');
+  document.getElementById('tab-url').classList.toggle('active', tab === 'url');
+}
+
+/* ─── Upload ─────────────────────────────────── */
+function onFileSelected(file) {
+  if (!file) return;
+  selectedFile = file;
+  document.getElementById('selected-file-name').textContent = `📄 ${file.name} (${fmtBytes(file.size)})`;
+  document.getElementById('selected-file').style.display = 'flex';
+  document.getElementById('upload-btn').disabled = false;
+}
+
+function clearFile() {
+  selectedFile = null;
+  document.getElementById('selected-file').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  document.getElementById('upload-btn').disabled = true;
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-area').classList.remove('dragging');
+  const file = e.dataTransfer.files[0];
+  if (file) onFileSelected(file);
+}
+
+async function uploadDocument() {
+  if (!selectedFile) return;
+  const btn = document.getElementById('upload-btn');
+  btn.disabled = true;
+  btn.textContent = 'Uploading…';
+  try {
+    const uploadCommId = document.getElementById('doc-upload-community')?.value || communityId;
+    const form = new FormData();
+    form.append('file', selectedFile);
+    form.append('communityId', uploadCommId);
+    form.append('documentType', document.getElementById('doc-category').value);
+    form.append('category', document.getElementById('doc-category').value);
+    const desc = document.getElementById('doc-description').value;
+    const ver  = document.getElementById('doc-version').value;
+    if (desc) form.append('description', desc);
+    if (ver)  form.append('version', ver);
+
+    const res = await fetch(`${API}/api/documents/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + accessToken },
+      body: form
+    });
+    if (!res.ok) throw new Error('Upload failed');
+    showToast('Document uploaded and indexed!', 'success');
+    clearFile();
+    document.getElementById('doc-description').value = '';
+    document.getElementById('doc-version').value = '';
+    await loadDocuments();
+  } catch(e) {
+    showToast('Upload failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Upload Document';
+  }
+}
+
+async function ingestUrl() {
+  const url  = document.getElementById('url-href').value.trim();
+  if (!url) { showToast('URL is required', 'error'); return; }
+  const btn  = document.getElementById('url-btn');
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  try {
+    const body = {
+      url,
+      title:       document.getElementById('url-title').value.trim() || null,
+      category:    document.getElementById('url-category').value,
+      description: document.getElementById('url-description').value.trim() || null,
+      version:     document.getElementById('url-version').value.trim() || null,
+    };
+    const urlCommId = document.getElementById('url-upload-community')?.value || communityId;
+    await apiFetch(`/api/documents/ingest-url?communityId=${urlCommId}`, 'POST', body);
+    showToast('Web page ingested and indexed!', 'success');
+    document.getElementById('url-href').value = '';
+    document.getElementById('url-title').value = '';
+    document.getElementById('url-description').value = '';
+    document.getElementById('url-version').value = '';
+    await loadDocuments();
+  } catch(e) {
+    showToast('Ingest failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add Web Page';
+  }
+}
+
+async function refreshDoc(docId) {
+  try {
+    await apiFetch(`/api/documents/${docId}/refresh`, 'POST');
+    showToast('Document refreshed!', 'success');
+    await loadDocuments();
+  } catch(e) { showToast('Refresh failed: ' + e.message, 'error'); }
+}
+
+async function reprocessDoc(docId) {
+  try {
+    await apiFetch(`/api/documents/${docId}/process`, 'POST');
+    showToast('Document re-processing started', 'success');
+    setTimeout(loadDocuments, 2000);
+  } catch(e) { showToast('Failed to process document', 'error'); }
+}
+
+/* ─── Edit metadata modal ───────────────────── */
+function openEditModal(docId, category, description, version) {
+  pendingEditId = docId;
+  document.getElementById('edit-category').value    = category || 'general';
+  document.getElementById('edit-description').value = description || '';
+  document.getElementById('edit-version').value     = version || '';
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeEditModal() {
+  pendingEditId = null;
+  document.getElementById('edit-modal').classList.remove('open');
+}
+async function saveEditModal() {
+  if (!pendingEditId) return;
+  try {
+    await apiFetch(`/api/documents/${pendingEditId}`, 'PATCH', {
+      category:    document.getElementById('edit-category').value,
+      description: document.getElementById('edit-description').value || null,
+      version:     document.getElementById('edit-version').value || null,
+    });
+    showToast('Metadata saved', 'success');
+    closeEditModal();
+    await loadDocuments();
+  } catch(e) { showToast('Save failed: ' + e.message, 'error'); }
+}
+
+/* ─── Archive modal ─────────────────────────── */
+function openArchiveModal(docId) {
+  pendingArchiveId = docId;
+  document.getElementById('archive-modal').classList.add('open');
+}
+function closeModal() {
+  pendingArchiveId = null;
+  document.getElementById('archive-modal').classList.remove('open');
+}
+async function confirmArchive() {
+  if (!pendingArchiveId) return;
+  try {
+    await apiFetch(`/api/documents/${pendingArchiveId}`, 'DELETE');
+    showToast('Document archived', 'success');
+    closeModal();
+    await loadDocuments();
+  } catch(e) { showToast('Failed to archive document', 'error'); closeModal(); }
+}
+
+/* ─── Widget Clients ────────────────────────── */
+async function loadWidgetClients() {
+  try {
+    const clients = await apiFetch('/api/admin/widget-clients');
+    renderWidgetClients(clients);
+  } catch(e) { showToast('Failed to load widget clients', 'error'); }
+}
+
+function renderWidgetClients(clients) {
+  const tbody = document.getElementById('widget-clients-body');
+  if (!clients || clients.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No API keys yet. Create one above.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = clients.map(c => `
+    <tr>
+      <td>${c.id}</td>
+      <td><strong>${escHtml(c.name)}</strong></td>
+      <td><code style="font-size:.8rem;background:#f1f5f9;padding:.15rem .4rem;border-radius:4px;">${escHtml(c.apiKey.substring(0, 18))}…</code></td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(c.allowedDomains?.join(', ')??'')}">
+        ${escHtml(c.allowedDomains?.join(', ') ?? '—')}</td>
+      <td>${c.active
+        ? '<span class="badge badge-active">Active</span>'
+        : '<span class="badge badge-inactive">Inactive</span>'}</td>
+      <td style="white-space:nowrap">${fmtDate(c.createdAt)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-sm ghost" onclick="showSnippetFor('${escHtml(c.apiKey)}')" style="margin-right:.3rem">📋 Snippet</button>
+        ${c.active
+          ? `<button class="btn-sm danger" onclick="deactivateWidgetClient(${c.id})">Deactivate</button>`
+          : '<span style="color:var(--muted);font-size:.8rem">Deactivated</span>'}
+      </td>
+    </tr>`).join('');
+}
+
+async function createWidgetClient() {
+  const name    = document.getElementById('wc-name').value.trim();
+  const domains = document.getElementById('wc-domains').value.trim();
+  if (!name)    { showToast('Partner name is required', 'error'); return; }
+  if (!domains) { showToast('At least one allowed domain is required', 'error'); return; }
+
+  const domainList = domains.split(',').map(d => d.trim()).filter(Boolean);
+  try {
+    const client = await apiFetch('/api/admin/widget-clients', 'POST', {
+      name, allowedDomains: domainList
+    });
+    showToast('API key created!', 'success');
+    document.getElementById('wc-name').value    = '';
+    document.getElementById('wc-domains').value = '';
+    revealKey(client.apiKey, domainList);
+    await loadWidgetClients();
+  } catch(e) { showToast('Failed to create key: ' + e.message, 'error'); }
+}
+
+function revealKey(apiKey, domains) {
+  document.getElementById('wc-key-display').textContent = apiKey;
+  document.getElementById('wc-snippet-text').textContent = buildSnippet(apiKey);
+  document.getElementById('wc-result').style.display = '';
+}
+
+function showSnippetFor(apiKey) {
+  document.getElementById('wc-key-display').textContent = apiKey;
+  document.getElementById('wc-snippet-text').textContent = buildSnippet(apiKey);
+  document.getElementById('wc-result').style.display = '';
+  document.getElementById('wc-result').scrollIntoView({ behavior: 'smooth' });
+}
+
+function buildSnippet(apiKey) {
+  const base = window.location.origin;
+  return `<!-- HOA Assistant Chat Widget -->
+<script
+  src="${base}/chat-widget.js"
+  data-api-url="${base}"
+  data-api-key="${apiKey}"
+  data-company="HOA Assistant"
+  data-primary-color="#2563eb">
+<\/script>`;
+}
+
+function copySnippet() {
+  const text = document.getElementById('wc-snippet-text').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('Snippet copied!', 'success'));
+}
+
+async function deactivateWidgetClient(id) {
+  if (!confirm('Deactivate this API key? The partner website will immediately lose access.')) return;
+  try {
+    await apiFetch(`/api/admin/widget-clients/${id}`, 'DELETE');
+    showToast('Key deactivated', 'success');
+    await loadWidgetClients();
+  } catch(e) { showToast('Failed to deactivate', 'error'); }
+}
+
+/* ─── PMC Management ────────────────────────── */
+let allPmcs              = [];
+let allCommunities       = [];
+let currentPmcId         = null;
+let pendingAssignCommId  = null;
+
+async function loadPmcs() {
+  try {
+    [allPmcs, allCommunities] = await Promise.all([
+      apiFetch('/api/admin/pmcs'),
+      apiFetch('/api/admin/communities'),
+    ]);
+    renderPmcs(allPmcs);
+    // Stats
+    document.getElementById('pmc-stat-total').textContent  = allPmcs.length;
+    const pmcMap   = buildPmcMap();
+    const active   = allCommunities.filter(c => c.isActive !== false);
+    const assigned = active.filter(c => pmcMap[c.id]).length;
+    document.getElementById('pmc-stat-communities').textContent    = active.length;
+    document.getElementById('pmc-stat-communities-sub').textContent =
+      assigned + ' assigned to PMC';
+  } catch(e) { showToast('Failed to load data', 'error'); }
+}
+
+async function loadCommunities() {
+  try {
+    [allPmcs, allCommunities] = await Promise.all([
+      apiFetch('/api/admin/pmcs'),
+      apiFetch('/api/admin/communities'),
+    ]);
+    renderCommunities(allCommunities);
+    const pmcMap  = buildPmcMap();
+    const active  = allCommunities.filter(c => c.isActive !== false);
+    const assigned = active.filter(c => pmcMap[c.id]).length;
+    document.getElementById('comm-stat-total').textContent    = active.length;
+    document.getElementById('comm-stat-total-sub').textContent =
+      allCommunities.length > active.length
+        ? `${allCommunities.length - active.length} inactive hidden below`
+        : 'All active';
+    document.getElementById('comm-stat-assigned').textContent = assigned;
+  } catch(e) { showToast('Failed to load communities', 'error'); }
+}
+
+/* ─── Helpers ────────────────────────────────── */
+function buildPmcMap() {
+  const map = {};
+  allPmcs.forEach(pmc => {
+    (pmc.communities || []).filter(c => c.isActive).forEach(c => {
+      map[c.communityId] = { pmcId: pmc.id, pmcName: pmc.companyName };
+    });
+  });
+  return map;
+}
+
+/* ─── Communities Table ──────────────────────── */
+function renderCommunities(communities) {
+  const pmcMap = buildPmcMap();
+  const tbody  = document.getElementById('communities-table-body');
+  if (!communities || communities.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No communities yet. Click "+ Add Community" to create one.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = communities.map(c => {
+    const isActive = c.isActive !== false;
+    const pmcInfo  = isActive ? pmcMap[c.id] : null;
+    const pmcBadge = isActive
+      ? (pmcInfo
+          ? `<span class="badge badge-active">${escHtml(pmcInfo.pmcName)}</span>`
+          : '<span class="badge badge-inactive">Unassigned</span>')
+      : '<span style="color:var(--muted);font-size:.82rem;">—</span>';
+    const statusBadge = isActive
+      ? '<span class="badge badge-active">Active</span>'
+      : '<span class="badge badge-inactive">Inactive</span>';
+    return `
+      <tr style="${isActive ? '' : 'opacity:.55;'}">
+        <td>${c.id}</td>
+        <td><strong>${escHtml(c.name)}</strong></td>
+        <td style="color:var(--muted);font-size:.8rem;">${c.slug ? escHtml(c.slug) : '—'}</td>
+        <td>${statusBadge}</td>
+        <td>${pmcBadge}</td>
+        <td style="display:flex;gap:.3rem;flex-wrap:wrap;white-space:nowrap;">
+          ${isActive ? `
+          <button class="btn-sm ghost"
+            onclick="openAssignCommunityToPmc(${c.id}, '${escHtml(c.name).replace(/'/g, "\\'")}')">
+            ${pmcInfo ? '↔ Reassign PMC' : '+ Assign PMC'}
+          </button>
+          <button class="btn-sm primary"
+            onclick="openAddResidentModalForCommunity(${c.id})">
+            + Resident
+          </button>
+          <button class="btn-sm danger" onclick="toggleCommunityActive(${c.id}, false)">Deactivate</button>
+          ` : `
+          <button class="btn-sm success" onclick="toggleCommunityActive(${c.id}, true)">Activate</button>
+          `}
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+async function toggleCommunityActive(communityId, active) {
+  const label = active ? 'Activate' : 'Deactivate';
+  if (!active && !confirm('Deactivate this community? It will be hidden from counts and assignment dropdowns.')) return;
+  try {
+    await apiFetch(`/api/admin/communities/${communityId}/status?active=${active}`, 'PATCH');
+    showToast(`Community ${active ? 'activated' : 'deactivated'}`, 'success');
+    await loadCommunities();
+  } catch(e) { showToast(`${label} failed: ` + e.message, 'error'); }
+}
+
+/* ─── Create Community ───────────────────────── */
+function openCreateCommunityModal() {
+  ['comm-name','comm-email','comm-phone','comm-hours','comm-emergency'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('comm-timezone').value = 'America/Los_Angeles';
+  document.getElementById('community-create-modal').classList.add('open');
+}
+
+function closeCreateCommunityModal() {
+  document.getElementById('community-create-modal').classList.remove('open');
+}
+
+async function submitCreateCommunity() {
+  const name = document.getElementById('comm-name').value.trim();
+  if (!name) { showToast('Community name is required', 'error'); return; }
+  const btn = document.getElementById('comm-submit-btn');
+  btn.disabled = true;
+  try {
+    const created = await apiFetch('/api/admin/communities', 'POST', {
+      name,
+      timeZone:        document.getElementById('comm-timezone').value,
+      contactEmail:    document.getElementById('comm-email').value.trim() || null,
+      contactPhone:    document.getElementById('comm-phone').value.trim() || null,
+      officeHours:     document.getElementById('comm-hours').value.trim() || null,
+      emergencyContact:document.getElementById('comm-emergency').value.trim() || null,
+    });
+    showToast(`Community "${created.name}" created!`, 'success');
+    closeCreateCommunityModal();
+    if (document.getElementById('page-communities').classList.contains('active')) {
+      await loadCommunities();
+    } else {
+      await loadPmcs();
+    }
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+/* ─── Assign Community → PMC ─────────────────── */
+function openAssignCommunityToPmc(communityId, communityName) {
+  pendingAssignCommId = communityId;
+  document.getElementById('assign-pmc-community-label').textContent = 'Community: ' + communityName;
+  document.getElementById('assign-pmc-notes').value = '';
+  const sel = document.getElementById('assign-pmc-select');
+  sel.innerHTML = '<option value="">Select PMC…</option>' +
+    allPmcs.filter(p => p.isActive === true).map(p =>
+      `<option value="${p.id}">${escHtml(p.companyName)}</option>`
+    ).join('');
+  document.getElementById('assign-pmc-modal').classList.add('open');
+}
+
+function closeAssignCommunityToPmc() {
+  document.getElementById('assign-pmc-modal').classList.remove('open');
+  pendingAssignCommId = null;
+}
+
+async function submitAssignCommunityToPmc() {
+  const pmcId = document.getElementById('assign-pmc-select').value;
+  if (!pmcId) { showToast('Please select a PMC', 'error'); return; }
+  const notes = document.getElementById('assign-pmc-notes').value.trim();
+  const btn = document.getElementById('assign-pmc-submit');
+  btn.disabled = true;
+  try {
+    const url = `/api/admin/pmcs/${pmcId}/communities/${pendingAssignCommId}` +
+                (notes ? `?notes=${encodeURIComponent(notes)}` : '');
+    await apiFetch(url, 'POST');
+    showToast('Community assigned to PMC!', 'success');
+    closeAssignCommunityToPmc();
+    if (document.getElementById('page-communities').classList.contains('active')) {
+      await loadCommunities();
+    } else {
+      await loadPmcs();
+    }
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+/* ─── Add Resident for a specific community ──── */
+function openAddResidentModalForCommunity(commId) {
+  const sel = document.getElementById('res-community-select');
+  const opts = (allCommunities.length > 0 ? allCommunities : [{ id: commId, name: 'Selected Community', isActive: true }])
+    .filter(c => c.isActive !== false);
+  sel.innerHTML = opts.map(c =>
+    `<option value="${c.id}" ${c.id === commId ? 'selected' : ''}>${escHtml(c.name)}</option>`
+  ).join('');
+  document.getElementById('resident-create-modal').classList.add('open');
+}
+
+function renderPmcs(pmcs) {
+  const container = document.getElementById('pmc-list');
+  if (!pmcs || pmcs.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:3rem;color:var(--muted);">
+        <div style="font-size:2.5rem;margin-bottom:.75rem;">🏢</div>
+        <div style="font-weight:600;margin-bottom:.4rem;">No PMCs registered yet</div>
+        <div style="font-size:.88rem;">Click "Register PMC" to get started</div>
+      </div>`;
+    return;
+  }
+  container.innerHTML = pmcs.map(p => {
+    const active = p.communities?.filter(c => c.isActive) || [];
+    const communityPills = active.length > 0
+      ? active.map(c =>
+          `<span class="badge badge-active" style="margin:.1rem .2rem 0 0;">${escHtml(c.communityName || 'Community #' + c.communityId)}</span>`
+        ).join('')
+      : '<span style="color:var(--muted);font-size:.82rem;">No communities assigned</span>';
+    return `
+      <div class="pmc-card ${p.isActive ? '' : 'inactive'}">
+        <div class="pmc-card-info">
+          <div class="pmc-card-name">
+            ${escHtml(p.companyName)}
+            ${!p.isActive ? '<span class="badge badge-inactive" style="margin-left:.5rem;vertical-align:middle;">Inactive</span>' : ''}
+          </div>
+          <div class="pmc-card-sub">
+            ${[p.city, p.state].filter(Boolean).join(', ')}${p.email ? ' · 📧 ' + escHtml(p.email) : ''}${p.phoneMain ? ' · 📞 ' + escHtml(p.phoneMain) : ''}
+          </div>
+          <div class="pmc-card-contacts" style="margin-top:.45rem;">${communityPills}</div>
+        </div>
+        <div class="pmc-card-actions">
+          <button class="btn-sm primary" onclick="openPmcDetail(${p.id})">View Details</button>
+          ${p.isActive ? `<button class="btn-sm danger" onclick="deactivatePmc(${p.id})">Deactivate</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ─── Create / Edit PMC ────────────────────── */
+function openCreatePmcModal(pmcData = null) {
+  currentPmcId = pmcData ? pmcData.id : null;
+  document.getElementById('pmc-modal-title').textContent  = pmcData ? 'Edit PMC' : 'Register New PMC';
+  document.getElementById('pmc-modal-submit').textContent = pmcData ? 'Save Changes' : 'Register PMC';
+  const fields = [
+    'companyName','email','website','address','city','state','zip',
+    'phoneMain','phoneSecondary','phoneMobile',
+    'contact1Name','contact1Title','contact1Phone','contact1Email',
+    'contact2Name','contact2Title','contact2Phone','contact2Email',
+    'contact3Name','contact3Title','contact3Phone','contact3Email',
+    'notes',
+  ];
+  fields.forEach(f => {
+    const el = document.getElementById('pmc-' + f);
+    if (el) el.value = (pmcData && pmcData[f]) ? pmcData[f] : '';
+  });
+  document.getElementById('pmc-create-modal').classList.add('open');
+}
+
+function closeCreatePmcModal() {
+  document.getElementById('pmc-create-modal').classList.remove('open');
+  currentPmcId = null;
+}
+
+async function submitPmcForm() {
+  const btn = document.getElementById('pmc-modal-submit');
+  const companyName = document.getElementById('pmc-companyName').value.trim();
+  if (!companyName) { showToast('Company name is required', 'error'); return; }
+  const body = {};
+  [
+    'companyName','email','website','address','city','state','zip',
+    'phoneMain','phoneSecondary','phoneMobile',
+    'contact1Name','contact1Title','contact1Phone','contact1Email',
+    'contact2Name','contact2Title','contact2Phone','contact2Email',
+    'contact3Name','contact3Title','contact3Phone','contact3Email',
+    'notes',
+  ].forEach(f => {
+    const val = document.getElementById('pmc-' + f).value.trim();
+    body[f] = val || null;
+  });
+  btn.disabled = true;
+  try {
+    if (currentPmcId) {
+      await apiFetch(`/api/admin/pmcs/${currentPmcId}`, 'PATCH', body);
+      showToast('PMC updated', 'success');
+    } else {
+      await apiFetch('/api/admin/pmcs', 'POST', body);
+      showToast('PMC registered!', 'success');
+    }
+    closeCreatePmcModal();
+    await loadPmcs();
+  } catch(e) {
+    showToast('Failed: ' + e.message, 'error');
+  } finally { btn.disabled = false; }
+}
+
+/* ─── PMC Detail ────────────────────────────── */
+async function openPmcDetail(pmcId) {
+  currentPmcId = pmcId;
+  document.getElementById('pmc-detail-content').innerHTML = '<p style="color:var(--muted);padding:1rem 0;">Loading…</p>';
+  document.getElementById('pmc-detail-modal').classList.add('open');
+  try {
+    const pmc = await apiFetch(`/api/admin/pmcs/${pmcId}`);
+    renderPmcDetail(pmc);
+  } catch(e) {
+    document.getElementById('pmc-detail-content').innerHTML = '<p style="color:var(--danger);">Failed to load details.</p>';
+  }
+}
+
+function closePmcDetail() {
+  document.getElementById('pmc-detail-modal').classList.remove('open');
+  currentPmcId = null;
+}
+
+function renderPmcDetail(pmc) {
+  const infoRow = (label, value) => value
+    ? `<div style="display:flex;gap:.5rem;margin-bottom:.3rem;font-size:.875rem;">
+         <span style="color:var(--muted);min-width:110px;flex-shrink:0;">${label}</span>
+         <span>${escHtml(value)}</span>
+       </div>` : '';
+
+  const contactBlock = (data) => {
+    if (!data.name) return '';
+    return `
+      <div style="background:#f8fafc;border-radius:6px;padding:.6rem .85rem;margin-bottom:.4rem;">
+        <div style="font-weight:600;font-size:.875rem;">${escHtml(data.name)}
+          ${data.title ? `<span style="color:var(--muted);font-weight:400;margin-left:.4rem;">· ${escHtml(data.title)}</span>` : ''}
+        </div>
+        <div style="font-size:.82rem;color:var(--muted);margin-top:.15rem;">
+          ${data.phone ? '📞 ' + escHtml(data.phone) : ''}
+          ${data.phone && data.email ? ' &nbsp;·&nbsp; ' : ''}
+          ${data.email ? '📧 ' + escHtml(data.email) : ''}
+        </div>
+      </div>`;
+  };
+
+  const activeComs  = pmc.communities?.filter(c => c.isActive)  || [];
+  const historyComs = pmc.communities?.filter(c => !c.isActive) || [];
+
+  const communityOptions = allCommunities.filter(c => c.isActive !== false).map(c =>
+    `<option value="${c.id}">${escHtml(c.name)}</option>`
+  ).join('');
+
+  document.getElementById('pmc-detail-content').innerHTML = `
+    <div class="modal-section">Company Info</div>
+    ${infoRow('Company', pmc.companyName)}
+    ${infoRow('Email', pmc.email)}
+    ${infoRow('Website', pmc.website)}
+    ${infoRow('Address', [pmc.address, pmc.city, pmc.state, pmc.zip].filter(Boolean).join(', '))}
+    ${infoRow('Main Phone', pmc.phoneMain)}
+    ${infoRow('Secondary', pmc.phoneSecondary)}
+    ${infoRow('Mobile', pmc.phoneMobile)}
+    ${pmc.notes ? `<div style="font-size:.82rem;color:var(--muted);margin-top:.4rem;">📝 ${escHtml(pmc.notes)}</div>` : ''}
+
+    ${(pmc.contact1Name || pmc.contact2Name || pmc.contact3Name) ? '<div class="modal-section">Contacts</div>' : ''}
+    ${contactBlock({ name: pmc.contact1Name, title: pmc.contact1Title, phone: pmc.contact1Phone, email: pmc.contact1Email })}
+    ${contactBlock({ name: pmc.contact2Name, title: pmc.contact2Title, phone: pmc.contact2Phone, email: pmc.contact2Email })}
+    ${contactBlock({ name: pmc.contact3Name, title: pmc.contact3Title, phone: pmc.contact3Phone, email: pmc.contact3Email })}
+
+    <div class="modal-section">Assigned Communities</div>
+    ${activeComs.length > 0
+      ? activeComs.map(c => `
+          <div style="display:flex;align-items:center;justify-content:space-between;
+                      padding:.5rem .75rem;background:#f0fdf4;border-radius:6px;margin-bottom:.3rem;">
+            <span style="font-weight:600;font-size:.875rem;">${escHtml(c.communityName || 'Community #' + c.communityId)}</span>
+            <button class="btn-sm danger" style="font-size:.75rem;"
+                    onclick="unassignCommunity(${pmc.id}, ${c.communityId})">Remove</button>
+          </div>`).join('')
+      : '<p style="color:var(--muted);font-size:.875rem;margin-bottom:.5rem;">No active communities assigned.</p>'}
+
+    ${historyComs.length > 0 ? `
+      <div style="margin-top:.5rem;">
+        <div style="font-size:.75rem;color:var(--muted);margin-bottom:.3rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Previously managed</div>
+        ${historyComs.map(c => `
+          <div style="display:flex;align-items:center;justify-content:space-between;
+                      padding:.4rem .75rem;background:#f8fafc;border-radius:6px;margin-bottom:.25rem;opacity:.7;">
+            <span style="font-size:.82rem;">${escHtml(c.communityName || 'Community #' + c.communityId)}</span>
+            <span style="font-size:.75rem;color:var(--muted);">Unassigned ${c.unassignedAt ? fmtDate(c.unassignedAt) : ''}</span>
+          </div>`).join('')}
+      </div>` : ''}
+
+    <div class="modal-section">Assign Community</div>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+      <select id="assign-community-select" class="filter-select"
+              style="flex:1;min-width:180px;padding:.5rem .75rem;">
+        <option value="">Select community…</option>
+        ${communityOptions}
+      </select>
+      <input type="text" id="assign-notes" placeholder="Notes (optional)"
+             style="flex:1;min-width:140px;padding:.5rem .7rem;border:1px solid var(--border);
+                    border-radius:6px;font-size:.875rem;outline:none;" />
+      <button class="btn-sm primary" onclick="submitAssignCommunity()">Assign</button>
+    </div>
+  `;
+}
+
+async function submitAssignCommunity() {
+  if (!currentPmcId) return;
+  const communityIdVal = document.getElementById('assign-community-select').value;
+  if (!communityIdVal) { showToast('Select a community first', 'error'); return; }
+  const notes = document.getElementById('assign-notes').value.trim();
+  const url = `/api/admin/pmcs/${currentPmcId}/communities/${communityIdVal}` +
+              (notes ? `?notes=${encodeURIComponent(notes)}` : '');
+  try {
+    await apiFetch(url, 'POST');
+    showToast('Community assigned!', 'success');
+    const pmc = await apiFetch(`/api/admin/pmcs/${currentPmcId}`);
+    renderPmcDetail(pmc);
+    await loadPmcs();
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
+async function unassignCommunity(pmcId, communityIdVal) {
+  if (!confirm('Remove this community from the PMC?')) return;
+  try {
+    await apiFetch(`/api/admin/pmcs/${pmcId}/communities/${communityIdVal}`, 'DELETE');
+    showToast('Community unassigned', 'success');
+    const pmc = await apiFetch(`/api/admin/pmcs/${pmcId}`);
+    renderPmcDetail(pmc);
+    await loadPmcs();
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
+async function deactivatePmc(pmcId) {
+  if (!confirm('Deactivate this PMC? They will no longer appear as active.')) return;
+  try {
+    await apiFetch(`/api/admin/pmcs/${pmcId}`, 'DELETE');
+    showToast('PMC deactivated', 'success');
+    await loadPmcs();
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+}
+
+async function openEditPmc() {
+  if (!currentPmcId) return;
+  closePmcDetail();
+  try {
+    const pmc = await apiFetch(`/api/admin/pmcs/${currentPmcId}`);
+    openCreatePmcModal(pmc);
+  } catch(e) { showToast('Failed to load PMC', 'error'); }
+}
+
+/* ─── Add Resident ──────────────────────────── */
+async function openAddResidentModal() {
+  if (allCommunities.length === 0) {
+    try { allCommunities = await apiFetch('/api/admin/communities'); } catch(_) {}
+  }
+  const sel = document.getElementById('res-community-select');
+  sel.innerHTML = allCommunities.filter(c => c.isActive !== false).map(c =>
+    `<option value="${c.id}" ${String(c.id) === communityId ? 'selected' : ''}>${escHtml(c.name)}</option>`
+  ).join('');
+  document.getElementById('resident-create-modal').classList.add('open');
+}
+
+function closeAddResidentModal() {
+  document.getElementById('resident-create-modal').classList.remove('open');
+  ['res-email','res-firstName','res-lastName','res-unit','res-phone'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+async function submitAddResident() {
+  const communityIdVal = document.getElementById('res-community-select').value;
+  const email      = document.getElementById('res-email').value.trim();
+  const firstName  = document.getElementById('res-firstName').value.trim();
+  const lastName   = document.getElementById('res-lastName').value.trim();
+  const unitNumber = document.getElementById('res-unit').value.trim();
+  const phone      = document.getElementById('res-phone').value.trim();
+  if (!email || !firstName || !lastName) {
+    showToast('Email, first and last name are required', 'error'); return;
+  }
+  const btn = document.getElementById('res-submit-btn');
+  btn.disabled = true;
+  try {
+    await apiFetch(`/api/admin/communities/${communityIdVal}/residents`, 'POST', {
+      email, firstName, lastName,
+      unitNumber: unitNumber || null,
+      phone:      phone || null,
+    });
+    showToast('Resident added! A temporary password has been generated.', 'success');
+    closeAddResidentModal();
+    if (document.getElementById('page-residents').classList.contains('active')) {
+      await loadResidents();
+    }
+  } catch(e) { showToast('Failed: ' + e.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+/* ─── API fetch wrapper ─────────────────────── */
+async function apiFetch(url, method = 'GET', body = null, useAuth = true) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (useAuth && accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + url, opts);
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try { const j = await res.json(); msg = j.message || j.error || msg; } catch(_) {}
+    throw new Error(msg);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+/* ─── Helpers ───────────────────────────────── */
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.className = 'toast', 3200);
+}
+</script>
+</body>
+</html>

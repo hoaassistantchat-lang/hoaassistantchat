@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HOA Assistant</title>
+  <style>
+    /* ── Reset & tokens ─────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:   #2563eb;
+      --primary-d: #1d4ed8;
+      --success:   #16a34a;
+      --danger:    #dc2626;
+      --bg:        #f8fafc;
+      --surface:   #ffffff;
+      --border:    #e2e8f0;
+      --text:      #1e293b;
+      --muted:     #64748b;
+      --radius:    12px;
+      --shadow:    0 4px 24px rgba(0,0,0,.08);
+      --font:      'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body { font-family: var(--font); background: var(--bg); color: var(--text);
+           display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+
+    /* ── Auth screen ────────────────────────────── */
+    #auth-screen {
+      flex: 1; display: flex; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .auth-card {
+      background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 2rem; width: 100%; max-width: 400px;
+    }
+    .auth-card .logo { font-size: 2rem; text-align: center; margin-bottom: .5rem; }
+    .auth-card h1 { text-align: center; font-size: 1.4rem; margin-bottom: .25rem; }
+    .auth-card p.sub { text-align: center; color: var(--muted); font-size: .875rem; margin-bottom: 1.5rem; }
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+    .tab-btn {
+      flex: 1; padding: .6rem; border: none; background: transparent;
+      cursor: pointer; font-size: .875rem; font-weight: 600; color: var(--muted);
+      border-bottom: 2px solid transparent; transition: all .2s;
+    }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: .8rem; font-weight: 600;
+                        color: var(--muted); margin-bottom: .35rem; }
+    .form-group input, .form-group select {
+      width: 100%; padding: .65rem .75rem; border: 1px solid var(--border);
+      border-radius: 8px; font-size: .95rem; outline: none; transition: border-color .2s;
+    }
+    .form-group input:focus, .form-group select:focus { border-color: var(--primary); }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+    .btn-primary {
+      width: 100%; padding: .75rem; background: var(--primary); color: #fff;
+      border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: background .2s; margin-top: .25rem;
+    }
+    .btn-primary:hover { background: var(--primary-d); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+    .auth-error {
+      background: #fef2f2; border: 1px solid #fecaca; color: var(--danger);
+      border-radius: 8px; padding: .6rem .75rem; font-size: .85rem; margin-top: .75rem;
+      display: none;
+    }
+    .forgot-link {
+      display: block; text-align: right; font-size: .8rem; color: var(--primary);
+      cursor: pointer; margin-top: -.5rem; margin-bottom: .75rem;
+    }
+
+    /* ── Chat screen ────────────────────────────── */
+    #chat-screen { flex: 1; display: none; flex-direction: column; height: 100dvh; }
+
+    /* Header */
+    .chat-header {
+      background: var(--primary); color: #fff; padding: .85rem 1rem;
+      display: flex; align-items: center; gap: .75rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15); flex-shrink: 0;
+    }
+    .chat-header .hoa-icon { font-size: 1.5rem; }
+    .chat-header .info { flex: 1; }
+    .chat-header .info h2 { font-size: 1rem; font-weight: 700; }
+    .chat-header .info p { font-size: .75rem; opacity: .85; }
+    .header-actions { display: flex; gap: .5rem; align-items: center; }
+    .icon-btn {
+      background: rgba(255,255,255,.15); border: none; color: #fff;
+      width: 34px; height: 34px; border-radius: 8px; cursor: pointer;
+      font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      transition: background .2s;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,.25); }
+
+    /* Messages */
+    .messages {
+      flex: 1; overflow-y: auto; padding: 1rem;
+      display: flex; flex-direction: column; gap: .75rem;
+    }
+    .msg-row { display: flex; align-items: flex-end; gap: .5rem; }
+    .msg-row.user { flex-direction: row-reverse; }
+    .avatar {
+      width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: .9rem;
+    }
+    .avatar.bot { background: var(--primary); color: #fff; }
+    .avatar.user-av { background: #dbeafe; }
+    .bubble {
+      max-width: 78%; padding: .65rem .9rem; border-radius: 16px;
+      font-size: .93rem; line-height: 1.5; word-break: break-word;
+    }
+    .bubble.bot { background: var(--surface); box-shadow: var(--shadow); border-bottom-left-radius: 4px; }
+    .bubble.user-bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 4px; }
+    .bubble .ticket-badge {
+      display: inline-block; background: #dcfce7; color: var(--success);
+      border: 1px solid #bbf7d0; border-radius: 999px;
+      padding: .2rem .65rem; font-size: .75rem; font-weight: 700; margin-top: .4rem;
+    }
+    .typing-indicator { display: flex; gap: 4px; padding: .65rem .9rem;
+                        background: var(--surface); border-radius: 16px;
+                        box-shadow: var(--shadow); width: fit-content; }
+    .typing-indicator span {
+      width: 7px; height: 7px; background: var(--muted); border-radius: 50%;
+      animation: bounce .9s infinite;
+    }
+    .typing-indicator span:nth-child(2) { animation-delay: .15s; }
+    .typing-indicator span:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30%           { transform: translateY(-6px); }
+    }
+
+    /* Quick actions */
+    .quick-actions {
+      padding: .5rem 1rem; display: flex; gap: .5rem; overflow-x: auto;
+      scrollbar-width: none; flex-shrink: 0;
+    }
+    .quick-actions::-webkit-scrollbar { display: none; }
+    .quick-chip {
+      white-space: nowrap; padding: .4rem .85rem; border: 1px solid var(--primary);
+      color: var(--primary); border-radius: 999px; font-size: .8rem; font-weight: 600;
+      background: transparent; cursor: pointer; transition: all .2s; flex-shrink: 0;
+    }
+    .quick-chip:hover { background: var(--primary); color: #fff; }
+
+    /* Input bar */
+    .input-bar {
+      padding: .75rem 1rem; background: var(--surface); border-top: 1px solid var(--border);
+      display: flex; gap: .5rem; align-items: flex-end; flex-shrink: 0;
+    }
+    #msg-input {
+      flex: 1; padding: .65rem .85rem; border: 1px solid var(--border);
+      border-radius: 999px; font-size: .95rem; outline: none; resize: none;
+      max-height: 120px; line-height: 1.4; transition: border-color .2s;
+      font-family: var(--font);
+    }
+    #msg-input:focus { border-color: var(--primary); }
+    .send-btn {
+      width: 42px; height: 42px; background: var(--primary); border: none;
+      border-radius: 50%; color: #fff; font-size: 1.1rem; cursor: pointer;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      transition: background .2s;
+    }
+    .send-btn:hover { background: var(--primary-d); }
+    .send-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 5rem; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: #fff; padding: .6rem 1.25rem;
+      border-radius: 999px; font-size: .85rem; opacity: 0;
+      transition: opacity .3s; pointer-events: none; z-index: 1000;
+    }
+    .toast.show { opacity: 1; }
+
+    /* Responsive */
+    @media (min-width: 640px) {
+      #auth-screen { padding: 2rem; }
+      .messages { padding: 1.25rem 15%; }
+      .input-bar { padding: .85rem 15%; }
+      .quick-actions { padding: .5rem 15%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── AUTH SCREEN ─────────────────────────────────────────── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="logo">🏘️</div>
+    <h1>HOA Assistant</h1>
+    <p class="sub">Your AI-powered community helper</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+      <button class="tab-btn" onclick="switchTab('register')">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="login-form">
+      <div class="form-group">
+        <label>Community Slug</label>
+        <input type="text" id="login-slug" placeholder="sunset-hills" autocomplete="organization" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <span class="forgot-link" onclick="showForgot()">Forgot password?</span>
+      <button class="btn-primary" onclick="doLogin()">Sign In</button>
+      <div class="auth-error" id="login-error"></div>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div id="register-form" style="display:none;">
+      <div class="form-group">
+        <label>Community Slug</label>
+        <input type="text" id="reg-slug" placeholder="sunset-hills" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label>Password <span style="font-weight:400">(min 8 chars)</span></label>
+        <input type="password" id="reg-password" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <div class="row-2">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="reg-first" placeholder="Jane" />
+        </div>
+        <div class="form-group">
+          <label>Last Name</label>
+          <input type="text" id="reg-last" placeholder="Smith" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Unit Number</label>
+        <input type="text" id="reg-unit" placeholder="42A" />
+      </div>
+      <button class="btn-primary" onclick="doRegister()">Create Account</button>
+      <div class="auth-error" id="reg-error"></div>
+    </div>
+
+    <!-- FORGOT PASSWORD FORM -->
+    <div id="forgot-form" style="display:none;">
+      <p style="font-size:.875rem;color:var(--muted);margin-bottom:1rem;">
+        Enter your community and email to receive a reset link.
+      </p>
+      <div class="form-group">
+        <label>Community Slug</label>
+        <input type="text" id="forgot-slug" placeholder="sunset-hills" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="forgot-email" placeholder="you@example.com" />
+      </div>
+      <button class="btn-primary" onclick="doForgot()">Send Reset Link</button>
+      <button class="btn-primary" style="background:transparent;color:var(--primary);margin-top:.5rem;border:1px solid var(--primary);"
+              onclick="switchTab('login')">Back to Login</button>
+      <div class="auth-error" id="forgot-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHAT SCREEN ─────────────────────────────────────────── -->
+<div id="chat-screen">
+  <div class="chat-header">
+    <div class="hoa-icon">🏘️</div>
+    <div class="info">
+      <h2 id="community-name">HOA Assistant</h2>
+      <p id="user-name">Loading…</p>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="admin-btn" title="Admin Dashboard"
+              onclick="window.location.href='/admin.html'" style="display:none;">⚙️</button>
+      <button class="icon-btn" title="New conversation" onclick="newConversation()">🔄</button>
+      <button class="icon-btn" title="Logout" onclick="doLogout()">🚪</button>
+    </div>
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="quick-actions">
+    <button class="quick-chip" onclick="sendQuick('What are the HOA rules?')">📋 HOA Rules</button>
+    <button class="quick-chip" onclick="sendQuick('When are dues due?')">💰 Dues</button>
+    <button class="quick-chip" onclick="sendQuick('Submit a maintenance request')">🔧 Maintenance</button>
+    <button class="quick-chip" onclick="sendQuick('What are the office hours?')">🕐 Office Hours</button>
+    <button class="quick-chip" onclick="sendQuick('Pool rules and hours')">🏊 Pool</button>
+    <button class="quick-chip" onclick="sendQuick('Guest parking policy')">🚗 Parking</button>
+  </div>
+
+  <div class="input-bar">
+    <textarea id="msg-input" rows="1" placeholder="Ask me anything about your community…"
+              onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="send-btn" onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ─── State ────────────────────────────────── */
+const API = '';   // same origin
+let accessToken = localStorage.getItem('hoa_access_token') || null;
+let refreshToken = localStorage.getItem('hoa_refresh_token') || null;
+let userProfile  = JSON.parse(localStorage.getItem('hoa_user') || 'null');
+let sessionId    = localStorage.getItem('hoa_session_id') || null;
+let communityId  = localStorage.getItem('hoa_community_id') || null;
+
+/* ─── Init ─────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  if (accessToken && userProfile) {
+    showChat();
+  } else {
+    showAuth();
+  }
+});
+
+/* ─── Auth helpers ─────────────────────────── */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) =>
+    b.classList.toggle('active', (tab==='login' && i===0)||(tab==='register' && i===1)));
+  document.getElementById('login-form').style.display    = tab==='login'    ? '' : 'none';
+  document.getElementById('register-form').style.display = tab==='register' ? '' : 'none';
+  document.getElementById('forgot-form').style.display   = 'none';
+}
+function showForgot() {
+  document.getElementById('login-form').style.display  = 'none';
+  document.getElementById('forgot-form').style.display = '';
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+}
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.style.display = 'block';
+}
+function clearErrors() {
+  document.querySelectorAll('.auth-error').forEach(e => e.style.display='none');
+}
+
+async function doLogin() {
+  clearErrors();
+  const slug  = document.getElementById('login-slug').value.trim();
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  if (!email || !pass) return showError('login-error', 'Email and password are required.');
+  try {
+    const res = await apiFetch('/api/auth/login', 'POST', { email, password: pass, communitySlug: slug||null }, false);
+    saveSession(res);
+    showChat();
+  } catch(e) { showError('login-error', e.message || 'Login failed. Check your credentials.'); }
+}
+
+async function doRegister() {
+  clearErrors();
+  const slug  = document.getElementById('reg-slug').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass  = document.getElementById('reg-password').value;
+  if (!slug || !email || !pass) return showError('reg-error','Community, email and password are required.');
+  try {
+    const res = await apiFetch('/api/auth/register', 'POST', {
+      communitySlug: slug, email, password: pass,
+      firstName: document.getElementById('reg-first').value,
+      lastName:  document.getElementById('reg-last').value,
+      unitNumber: document.getElementById('reg-unit').value,
+    }, false);
+    saveSession(res);
+    showChat();
+  } catch(e) { showError('reg-error', e.message || 'Registration failed.'); }
+}
+
+async function doForgot() {
+  clearErrors();
+  const slug  = document.getElementById('forgot-slug').value.trim();
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!slug || !email) return showError('forgot-error','Both fields are required.');
+  try {
+    await apiFetch('/api/auth/forgot-password', 'POST', { communitySlug: slug, email }, false);
+    showToast('If that email exists, a reset link was sent ✓');
+    switchTab('login');
+  } catch(e) { showError('forgot-error', e.message || 'Request failed.'); }
+}
+
+function saveSession(data) {
+  accessToken  = data.accessToken;
+  refreshToken = data.refreshToken;
+  userProfile  = data.user;
+  communityId  = data.user?.communityId?.toString();
+  localStorage.setItem('hoa_access_token',  accessToken);
+  localStorage.setItem('hoa_refresh_token', refreshToken);
+  localStorage.setItem('hoa_user',          JSON.stringify(userProfile));
+  localStorage.setItem('hoa_community_id',  communityId);
+}
+
+async function doLogout() {
+  try { await apiFetch('/api/auth/logout','POST',{}); } catch(_){}
+  localStorage.clear();
+  accessToken = refreshToken = userProfile = sessionId = communityId = null;
+  document.getElementById('chat-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+/* ─── Chat helpers ─────────────────────────── */
+function showAuth() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('chat-screen').style.display = 'none';
+}
+function showChat() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('chat-screen').style.display = 'flex';
+  document.getElementById('community-name').textContent =
+      userProfile?.communityName || 'HOA Assistant';
+  document.getElementById('user-name').textContent =
+      (userProfile?.firstName ? `Hi, ${userProfile.firstName}!` : userProfile?.email || 'Resident');
+  // Show admin dashboard button for admin/super-admin users
+  const isAdmin = userProfile?.roles?.some(r => r === 'ROLE_ADMIN' || r === 'ROLE_SUPER_ADMIN');
+  document.getElementById('admin-btn').style.display = isAdmin ? 'flex' : 'none';
+  if (document.getElementById('messages').children.length === 0) {
+    appendBotMsg(`👋 Hello${userProfile?.firstName ? ', '+userProfile.firstName : ''}! I'm your HOA assistant. How can I help you today?`);
+  }
+}
+
+function newConversation() {
+  sessionId = null;
+  localStorage.removeItem('hoa_session_id');
+  document.getElementById('messages').innerHTML = '';
+  appendBotMsg('👋 New conversation started! How can I help you?');
+}
+
+function appendBotMsg(text, ticketId) {
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  row.innerHTML = `
+    <div class="avatar bot">🤖</div>
+    <div class="bubble bot">${escHtml(text)}
+      ${ticketId ? `<span class="ticket-badge">🎫 Ticket #${ticketId}</span>` : ''}
+    </div>`;
+  document.getElementById('messages').appendChild(row);
+  scrollToBottom();
+}
+function appendUserMsg(text) {
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = `
+    <div class="avatar user-av">👤</div>
+    <div class="bubble user-bubble">${escHtml(text)}</div>`;
+  document.getElementById('messages').appendChild(row);
+  scrollToBottom();
+}
+function showTyping() {
+  const row = document.createElement('div');
+  row.id = 'typing'; row.className = 'msg-row';
+  row.innerHTML = `<div class="avatar bot">🤖</div>
+    <div class="typing-indicator"><span></span><span></span><span></span></div>`;
+  document.getElementById('messages').appendChild(row);
+  scrollToBottom();
+}
+function hideTyping() {
+  document.getElementById('typing')?.remove();
+}
+function scrollToBottom() {
+  const m = document.getElementById('messages');
+  m.scrollTop = m.scrollHeight;
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = ''; autoResize(input);
+  appendUserMsg(text);
+  document.getElementById('send-btn').disabled = true;
+  showTyping();
+  try {
+    const body = { message: text, communityId: communityId ? parseInt(communityId) : 1 };
+    if (sessionId) body.sessionId = sessionId;
+    const res = await apiFetch('/api/chat', 'POST', body);
+    hideTyping();
+    if (res.sessionId) {
+      sessionId = res.sessionId;
+      localStorage.setItem('hoa_session_id', sessionId);
+    }
+    const reply  = res.response || res.message || 'I received your message!';
+    const ticket = res.ticketData?.ticketId || res.ticketId;
+    appendBotMsg(reply, ticket);
+  } catch(e) {
+    hideTyping();
+    appendBotMsg('⚠️ Sorry, I had trouble connecting. Please try again.');
+  } finally {
+    document.getElementById('send-btn').disabled = false;
+    input.focus();
+  }
+}
+
+function sendQuick(text) {
+  document.getElementById('msg-input').value = text;
+  sendMessage();
+}
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+/* ─── API fetch wrapper ────────────────────── */
+async function apiFetch(url, method='GET', body=null, useAuth=true) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (useAuth && accessToken) headers['Authorization'] = 'Bearer ' + accessToken;
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  let res = await fetch(API + url, opts);
+
+  // Auto-refresh on 401
+  if (res.status === 401 && refreshToken && useAuth) {
+    try {
+      const rr = await fetch(API + '/api/auth/refresh', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken })
+      });
+      if (rr.ok) {
+        const nd = await rr.json();
+        saveSession(nd);
+        headers['Authorization'] = 'Bearer ' + accessToken;
+        res = await fetch(API + url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      } else { doLogout(); return; }
+    } catch(_) { doLogout(); return; }
+  }
+
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try { const j = await res.json(); msg = j.message || j.error || msg; } catch(_) {}
+    throw new Error(msg);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+/* ─── Toast ────────────────────────────────── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>

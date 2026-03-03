@@ -1,0 +1,104 @@
+spring:
+  application:
+    name: hoa-assistant
+  
+  config:
+    import: optional:classpath:application-local.yml
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hoa_assistant
+    username: hoa_user
+    password: hoa_password
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  # Mail configuration (SendGrid-compatible SMTP or AWS SES)
+  mail:
+    host: ${MAIL_HOST:smtp.sendgrid.net}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:apikey}
+    password: ${MAIL_PASSWORD:not-set}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  mvc:
+    static-path-pattern: /**
+    static-locations: classpath:/static/
+
+server:
+  port: 8080
+
+# Custom application properties
+hoa:
+  api:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:not-set}
+      api-url: https://api.anthropic.com/v1/messages
+      model: claude-sonnet-4-20250514
+      max-tokens: 1000
+      temperature: 0.2
+
+    openai:
+      api-key: ${OPENAI_API_KEY:not-set}
+      api-url: https://api.openai.com/v1/embeddings
+      model: text-embedding-3-small
+  
+  documents:
+    provider: ${HOA_DOCUMENTS_PROVIDER:local} # local | s3
+    storage-path: ${user.home}/hoa-documents
+    chunk-size: 800
+    chunk-overlap: 100
+    s3-bucket: ${HOA_S3_BUCKET:}
+    s3-region: ${HOA_S3_REGION:us-east-1}
+    s3-prefix: ${HOA_S3_PREFIX:documents}
+    s3-endpoint: ${HOA_S3_ENDPOINT:}
+    s3-path-style: ${HOA_S3_PATH_STYLE:false}
+  
+  rag:
+    top-k: 4
+    confidence-threshold: 0.75
+
+  security:
+    jwt:
+      # Must be at least 256-bit (32 chars). Override via env var HOA_JWT_SECRET
+      secret: ${HOA_JWT_SECRET:hoa-assistant-super-secret-jwt-key-change-in-production-2024!}
+      expiration-ms: 3600000          # 1 hour
+      refresh-expiration-ms: 604800000  # 7 days
+
+  email:
+    enabled: ${MAIL_ENABLED:false}            # Set to true when SMTP is configured
+    from-address: ${MAIL_FROM:noreply@hoa-assistant.com}
+    from-name: ${MAIL_FROM_NAME:HOA Assistant}
+    app-base-url: ${APP_BASE_URL:http://localhost:8080}
+
+logging:
+  level:
+    com.hoa.assistant: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate: INFO
+    org.flywaydb: INFO
