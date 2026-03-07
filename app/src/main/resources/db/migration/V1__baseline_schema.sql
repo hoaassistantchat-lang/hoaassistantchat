@@ -5,13 +5,7 @@
 --
 -- Sources merged:
 --   V1__baseline_schema.sql
---   V2__multi_tenant_auth.sql
---   V3__document_enhancements.sql
---   V4__add_varchar_to_vector_cast.sql
---   V5__property_management_companies.sql
---
 -- Last updated: 2026-03-02
--- ============================================================
 
 
 -- ============================================================

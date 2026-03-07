@@ -124,71 +124,71 @@ CREATE TYPE suggested_faq_status AS ENUM (
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE companies (
-                           id              BIGSERIAL PRIMARY KEY,
-                           uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                           name            VARCHAR(255) NOT NULL,
-                           slug            VARCHAR(100) NOT NULL UNIQUE,  -- URL-safe identifier
-                           email           VARCHAR(255),
-                           phone           VARCHAR(50),
-                           logo_url        TEXT,
-                           settings        JSONB NOT NULL DEFAULT '{}',   -- company-level config
-                           subscription_tier VARCHAR(50) DEFAULT 'free',
-                           max_communities INT DEFAULT 10,
-                           max_documents_per_community INT DEFAULT 500,
-                           is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-                           created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                           updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                           deleted_at      TIMESTAMPTZ
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    name            VARCHAR(255) NOT NULL,
+    slug            VARCHAR(100) NOT NULL UNIQUE,  -- URL-safe identifier
+    email           VARCHAR(255),
+    phone           VARCHAR(50),
+    logo_url        TEXT,
+    settings        JSONB NOT NULL DEFAULT '{}',   -- company-level config
+    subscription_tier VARCHAR(50) DEFAULT 'free',
+    max_communities INT DEFAULT 10,
+    max_documents_per_community INT DEFAULT 500,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 
 CREATE TABLE communities (
-                             id              BIGSERIAL PRIMARY KEY,
-                             uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                             company_id      BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-                             name            VARCHAR(255) NOT NULL,
-                             slug            VARCHAR(100) NOT NULL,
-                             address         TEXT,
-                             timezone        VARCHAR(50) DEFAULT 'America/New_York',
-                             settings        JSONB NOT NULL DEFAULT '{}',  -- community-specific AI config
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    company_id      BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    name            VARCHAR(255) NOT NULL,
+    slug            VARCHAR(100) NOT NULL,
+    address         TEXT,
+    timezone        VARCHAR(50) DEFAULT 'America/New_York',
+    settings        JSONB NOT NULL DEFAULT '{}',  -- community-specific AI config
     -- AI behavior overrides
-                             ai_system_prompt TEXT,                         -- custom system prompt
-                             ai_temperature   FLOAT DEFAULT 0.3,
-                             ai_model         VARCHAR(100) DEFAULT 'gpt-4o',
-                             welcome_message  TEXT DEFAULT 'Hello! How can I help you today?',
-                             ticket_counter  BIGINT NOT NULL DEFAULT 0,       -- per-community sequential ticket numbering
-                             is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-                             created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                             updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                             deleted_at      TIMESTAMPTZ,
-                             UNIQUE (company_id, slug)
+    ai_system_prompt TEXT,                         -- custom system prompt
+    ai_temperature   FLOAT DEFAULT 0.3,
+    ai_model         VARCHAR(100) DEFAULT 'gpt-4o',
+    welcome_message  TEXT DEFAULT 'Hello! How can I help you today?',
+    ticket_counter  BIGINT NOT NULL DEFAULT 0,       -- per-community sequential ticket numbering
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ,
+    UNIQUE (company_id, slug)
 );
 
 CREATE TABLE users (
-                       id              BIGSERIAL PRIMARY KEY,
-                       uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                       company_id      BIGINT REFERENCES companies(id) ON DELETE SET NULL,
-                       email           VARCHAR(255) NOT NULL,
-                       password_hash   VARCHAR(255),                  -- NULL for SSO users
-                       full_name       VARCHAR(255) NOT NULL,
-                       phone           VARCHAR(50),
-                       avatar_url      TEXT,
-                       role            user_role NOT NULL DEFAULT 'resident',
-                       is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-                       email_verified  BOOLEAN NOT NULL DEFAULT FALSE,
-                       last_login_at   TIMESTAMPTZ,
-                       created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                       updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                       deleted_at      TIMESTAMPTZ
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    company_id      BIGINT REFERENCES companies(id) ON DELETE SET NULL,
+    email           VARCHAR(255) NOT NULL,
+    password_hash   VARCHAR(255),                  -- NULL for SSO users
+    full_name       VARCHAR(255) NOT NULL,
+    phone           VARCHAR(50),
+    avatar_url      TEXT,
+    role            user_role NOT NULL DEFAULT 'resident',
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    email_verified  BOOLEAN NOT NULL DEFAULT FALSE,
+    last_login_at   TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 
 -- Junction: users ↔ communities (many-to-many)
 CREATE TABLE user_communities (
-                                  id              BIGSERIAL PRIMARY KEY,
-                                  user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-                                  community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                                  role            user_role NOT NULL DEFAULT 'resident',
-                                  joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                  UNIQUE (user_id, community_id)
+    id              BIGSERIAL PRIMARY KEY,
+    user_id         BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    role            user_role NOT NULL DEFAULT 'resident',
+    joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, community_id)
 );
 
 
@@ -198,85 +198,85 @@ CREATE TABLE user_communities (
 
 -- 3a. Documents (PDFs, uploads)
 CREATE TABLE documents (
-                           id              BIGSERIAL PRIMARY KEY,
-                           uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                           community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                           uploaded_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                           title           VARCHAR(500) NOT NULL,
-                           description     TEXT,
-                           file_name       VARCHAR(500) NOT NULL,
-                           file_url        TEXT NOT NULL,                 -- S3/storage URL
-                           file_size_bytes BIGINT,
-                           mime_type       VARCHAR(100),
-                           category        VARCHAR(100),                  -- rules, financials, minutes, etc.
-                           tags            TEXT[] DEFAULT '{}',
-                           version         INT NOT NULL DEFAULT 1,
-                           status          document_status NOT NULL DEFAULT 'pending',
-                           page_count      INT,
-                           extracted_text   TEXT,                          -- full extracted text (for reprocessing)
-                           processing_error TEXT,
-                           metadata        JSONB NOT NULL DEFAULT '{}',
-                           is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-                           created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                           updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                           deleted_at      TIMESTAMPTZ
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    uploaded_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    title           VARCHAR(500) NOT NULL,
+    description     TEXT,
+    file_name       VARCHAR(500) NOT NULL,
+    file_url        TEXT NOT NULL,                 -- S3/storage URL
+    file_size_bytes BIGINT,
+    mime_type       VARCHAR(100),
+    category        VARCHAR(100),                  -- rules, financials, minutes, etc.
+    tags            TEXT[] DEFAULT '{}',
+    version         INT NOT NULL DEFAULT 1,
+    status          document_status NOT NULL DEFAULT 'pending',
+    page_count      INT,
+    extracted_text   TEXT,                          -- full extracted text (for reprocessing)
+    processing_error TEXT,
+    metadata        JSONB NOT NULL DEFAULT '{}',
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 
 -- 3b. FAQs
 CREATE TABLE faqs (
-                      id              BIGSERIAL PRIMARY KEY,
-                      uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                      community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                      created_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                      question        TEXT NOT NULL,
-                      answer          TEXT NOT NULL,
-                      category        VARCHAR(100),
-                      sort_order      INT DEFAULT 0,
-                      is_published    BOOLEAN NOT NULL DEFAULT TRUE,
-                      view_count      INT DEFAULT 0,
-                      helpful_count   INT DEFAULT 0,
-                      metadata        JSONB NOT NULL DEFAULT '{}',
-                      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                      updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                      deleted_at      TIMESTAMPTZ
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    created_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    question        TEXT NOT NULL,
+    answer          TEXT NOT NULL,
+    category        VARCHAR(100),
+    sort_order      INT DEFAULT 0,
+    is_published    BOOLEAN NOT NULL DEFAULT TRUE,
+    view_count      INT DEFAULT 0,
+    helpful_count   INT DEFAULT 0,
+    metadata        JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 
 -- 3c. Announcements
 CREATE TABLE announcements (
-                               id              BIGSERIAL PRIMARY KEY,
-                               uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                               community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                               created_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                               title           VARCHAR(500) NOT NULL,
-                               body            TEXT NOT NULL,
-                               category        VARCHAR(100),
-                               priority        VARCHAR(20) DEFAULT 'normal',
-                               is_published    BOOLEAN NOT NULL DEFAULT FALSE,
-                               published_at    TIMESTAMPTZ,
-                               expires_at      TIMESTAMPTZ,
-                               metadata        JSONB NOT NULL DEFAULT '{}',
-                               created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                               updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                               deleted_at      TIMESTAMPTZ
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    created_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    title           VARCHAR(500) NOT NULL,
+    body            TEXT NOT NULL,
+    category        VARCHAR(100),
+    priority        VARCHAR(20) DEFAULT 'normal',
+    is_published    BOOLEAN NOT NULL DEFAULT FALSE,
+    published_at    TIMESTAMPTZ,
+    expires_at      TIMESTAMPTZ,
+    metadata        JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 
 -- 3d. Emails / Notices
 CREATE TABLE emails (
-                        id              BIGSERIAL PRIMARY KEY,
-                        uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                        community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                        imported_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                        subject         VARCHAR(500),
-                        sender          VARCHAR(255),
-                        recipients      TEXT[],
-                        body_text       TEXT NOT NULL,
-                        body_html       TEXT,
-                        received_at     TIMESTAMPTZ,
-                        category        VARCHAR(100),
-                        metadata        JSONB NOT NULL DEFAULT '{}',
-                        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                        updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                        deleted_at      TIMESTAMPTZ
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    imported_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    subject         VARCHAR(500),
+    sender          VARCHAR(255),
+    recipients      TEXT[],
+    body_text       TEXT NOT NULL,
+    body_html       TEXT,
+    received_at     TIMESTAMPTZ,
+    category        VARCHAR(100),
+    metadata        JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 
 -- 3e. Knowledge Sources Registry
@@ -284,24 +284,24 @@ CREATE TABLE emails (
 -- polymorphic FK problem. Every document, FAQ, announcement, or email
 -- inserts a row here so knowledge_chunks can have a real FK constraint.
 CREATE TABLE knowledge_sources (
-                                   id              BIGSERIAL PRIMARY KEY,
-                                   community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                                   source_type     source_type NOT NULL,
-                                   source_id       BIGINT NOT NULL,               -- ID in the source-specific table
-                                   title           VARCHAR(500),                   -- denormalized for quick lookup
-                                   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-                                   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                   deleted_at      TIMESTAMPTZ,
-                                   UNIQUE (source_type, source_id)
+    id              BIGSERIAL PRIMARY KEY,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    source_type     source_type NOT NULL,
+    source_id       BIGINT NOT NULL,               -- ID in the source-specific table
+    title           VARCHAR(500),                   -- denormalized for quick lookup
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ,
+    UNIQUE (source_type, source_id)
 );
 
 -- Auto-register documents into knowledge_sources
 CREATE OR REPLACE FUNCTION register_knowledge_source_document() RETURNS trigger AS $$
 BEGIN
-INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
-VALUES (NEW.community_id, 'document', NEW.id, NEW.title);
-RETURN NEW;
+    INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
+    VALUES (NEW.community_id, 'document', NEW.id, NEW.title);
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -313,9 +313,9 @@ CREATE TRIGGER trg_register_doc_source
 -- Auto-register FAQs into knowledge_sources
 CREATE OR REPLACE FUNCTION register_knowledge_source_faq() RETURNS trigger AS $$
 BEGIN
-INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
-VALUES (NEW.community_id, 'faq', NEW.id, LEFT(NEW.question, 500));
-RETURN NEW;
+    INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
+    VALUES (NEW.community_id, 'faq', NEW.id, LEFT(NEW.question, 500));
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -327,9 +327,9 @@ CREATE TRIGGER trg_register_faq_source
 -- Auto-register announcements into knowledge_sources
 CREATE OR REPLACE FUNCTION register_knowledge_source_announcement() RETURNS trigger AS $$
 BEGIN
-INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
-VALUES (NEW.community_id, 'announcement', NEW.id, NEW.title);
-RETURN NEW;
+    INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
+    VALUES (NEW.community_id, 'announcement', NEW.id, NEW.title);
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -341,9 +341,9 @@ CREATE TRIGGER trg_register_announcement_source
 -- Auto-register emails into knowledge_sources
 CREATE OR REPLACE FUNCTION register_knowledge_source_email() RETURNS trigger AS $$
 BEGIN
-INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
-VALUES (NEW.community_id, 'email', NEW.id, NEW.subject);
-RETURN NEW;
+    INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
+    VALUES (NEW.community_id, 'email', NEW.id, NEW.subject);
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -363,13 +363,13 @@ CREATE OR REPLACE FUNCTION register_generic_knowledge_source(
     p_title        VARCHAR(500) DEFAULT NULL
 ) RETURNS BIGINT AS $$
 DECLARE
-v_id BIGINT;
+    v_id BIGINT;
 BEGIN
-INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
-VALUES (p_community_id, p_source_type, p_source_id, p_title)
+    INSERT INTO knowledge_sources (community_id, source_type, source_id, title)
+    VALUES (p_community_id, p_source_type, p_source_id, p_title)
     ON CONFLICT (source_type, source_id) DO UPDATE SET title = EXCLUDED.title
-                                                RETURNING id INTO v_id;
-RETURN v_id;
+    RETURNING id INTO v_id;
+    RETURN v_id;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -392,61 +392,61 @@ $$ LANGUAGE plpgsql;
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE knowledge_chunks (
-                                  id              BIGSERIAL PRIMARY KEY,
-                                  uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                                  community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
 
     -- Source tracking (FK to knowledge_sources for referential integrity)
-                                  source_type     source_type NOT NULL,
-                                  source_id       BIGINT NOT NULL,               -- FK to knowledge_sources via (source_type, source_id)
-                                  chunk_index     INT NOT NULL DEFAULT 0,         -- ordering within the source
+    source_type     source_type NOT NULL,
+    source_id       BIGINT NOT NULL,               -- FK to knowledge_sources via (source_type, source_id)
+    chunk_index     INT NOT NULL DEFAULT 0,         -- ordering within the source
 
     -- Referential integrity via knowledge_sources registry
-                                  FOREIGN KEY (source_type, source_id) REFERENCES knowledge_sources(source_type, source_id) ON DELETE CASCADE,
+    FOREIGN KEY (source_type, source_id) REFERENCES knowledge_sources(source_type, source_id) ON DELETE CASCADE,
 
     -- Content
-                                  chunk_title     TEXT,                            -- section/topic title for LLM context
-                                  chunk_text      TEXT NOT NULL,
-                                  chunk_hash      VARCHAR(64) NOT NULL,           -- SHA-256 for deduplication
+    chunk_title     TEXT,                            -- section/topic title for LLM context
+    chunk_text      TEXT NOT NULL,
+    chunk_hash      VARCHAR(64) NOT NULL,           -- SHA-256 for deduplication
 
     -- Vector embedding
-                                  embedding       vector(1536),                   -- OpenAI text-embedding-3-small
+    embedding       vector(1536),                   -- OpenAI text-embedding-3-small
     -- NOTE: If you switch to text-embedding-3-large, change to vector(3072)
     -- For dimensionality reduction (cost savings), you can use vector(256) or vector(512)
 
     -- Full-text search support (hybrid search)
-                                  chunk_tsv       tsvector,                       -- auto-populated by trigger
+    chunk_tsv       tsvector,                       -- auto-populated by trigger
 
     -- Retrieval quality tuning
-                                  importance_score FLOAT NOT NULL DEFAULT 1.0,     -- weight by source: FAQ=1.5, announcement=1.3, doc=1.0, email=0.8
-                                  token_count     INT,
-                                  metadata        JSONB NOT NULL DEFAULT '{}',
+    importance_score FLOAT NOT NULL DEFAULT 1.0,     -- weight by source: FAQ=1.5, announcement=1.3, doc=1.0, email=0.8
+    token_count     INT,
+    metadata        JSONB NOT NULL DEFAULT '{}',
     -- Recommended metadata keys:
     --   document_title, section_title, page_number, category,
     --   source_url, author, date_published
 
     -- Lifecycle
-                                  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-                                  version         INT NOT NULL DEFAULT 1,
-                                  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    version         INT NOT NULL DEFAULT 1,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Dedup constraint: same source, same chunk position, same version
-                                  UNIQUE (source_type, source_id, chunk_index, version)
+    UNIQUE (source_type, source_id, chunk_index, version)
 );
 
 -- Auto-populate tsvector column
 CREATE OR REPLACE FUNCTION knowledge_chunks_tsv_trigger() RETURNS trigger AS $$
 BEGIN
     NEW.chunk_tsv := to_tsvector('english', COALESCE(NEW.chunk_text, ''));
-RETURN NEW;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_knowledge_chunks_tsv
     BEFORE INSERT OR UPDATE OF chunk_text
-                     ON knowledge_chunks
-                         FOR EACH ROW
-                         EXECUTE FUNCTION knowledge_chunks_tsv_trigger();
+    ON knowledge_chunks
+    FOR EACH ROW
+    EXECUTE FUNCTION knowledge_chunks_tsv_trigger();
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -454,49 +454,49 @@ CREATE TRIGGER trg_knowledge_chunks_tsv
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE ingestion_jobs (
-                                id              BIGSERIAL PRIMARY KEY,
-                                uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                                community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                                source_type     source_type NOT NULL,
-                                source_id       BIGINT NOT NULL,
-                                status          ingestion_status NOT NULL DEFAULT 'queued',
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    source_type     source_type NOT NULL,
+    source_id       BIGINT NOT NULL,
+    status          ingestion_status NOT NULL DEFAULT 'queued',
 
     -- Processing details
-                                total_chunks    INT DEFAULT 0,
-                                processed_chunks INT DEFAULT 0,
-                                total_tokens    INT DEFAULT 0,
-                                embedding_model VARCHAR(100) DEFAULT 'text-embedding-3-small',
-                                chunk_strategy  VARCHAR(50) DEFAULT 'recursive',  -- recursive, sentence, paragraph
-                                chunk_size      INT DEFAULT 500,                   -- target tokens per chunk
-                                chunk_overlap   INT DEFAULT 100,                   -- overlap tokens
+    total_chunks    INT DEFAULT 0,
+    processed_chunks INT DEFAULT 0,
+    total_tokens    INT DEFAULT 0,
+    embedding_model VARCHAR(100) DEFAULT 'text-embedding-3-small',
+    chunk_strategy  VARCHAR(50) DEFAULT 'recursive',  -- recursive, sentence, paragraph
+    chunk_size      INT DEFAULT 500,                   -- target tokens per chunk
+    chunk_overlap   INT DEFAULT 100,                   -- overlap tokens
 
     -- Timing
-                                queued_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                started_at      TIMESTAMPTZ,
-                                completed_at    TIMESTAMPTZ,
+    queued_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at      TIMESTAMPTZ,
+    completed_at    TIMESTAMPTZ,
 
     -- Error handling
-                                error_message   TEXT,
-                                error_details   JSONB,
-                                retry_count     INT DEFAULT 0,
-                                max_retries     INT DEFAULT 3,
+    error_message   TEXT,
+    error_details   JSONB,
+    retry_count     INT DEFAULT 0,
+    max_retries     INT DEFAULT 3,
 
     -- Cost tracking
-                                api_calls_made  INT DEFAULT 0,
-                                estimated_cost  DECIMAL(10, 6) DEFAULT 0,
+    api_calls_made  INT DEFAULT 0,
+    estimated_cost  DECIMAL(10, 6) DEFAULT 0,
 
-                                created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Track individual chunk processing for resumability
 CREATE TABLE ingestion_chunk_log (
-                                     id              BIGSERIAL PRIMARY KEY,
-                                     job_id          BIGINT NOT NULL REFERENCES ingestion_jobs(id) ON DELETE CASCADE,
-                                     chunk_index     INT NOT NULL,
-                                     status          chunk_log_status NOT NULL DEFAULT 'pending',
-                                     error_message   TEXT,
-                                     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id              BIGSERIAL PRIMARY KEY,
+    job_id          BIGINT NOT NULL REFERENCES ingestion_jobs(id) ON DELETE CASCADE,
+    chunk_index     INT NOT NULL,
+    status          chunk_log_status NOT NULL DEFAULT 'pending',
+    error_message   TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 
@@ -505,60 +505,60 @@ CREATE TABLE ingestion_chunk_log (
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE conversations (
-                               id              BIGSERIAL PRIMARY KEY,
-                               uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                               community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                               widget_session_id BIGINT,                       -- FK added after widget_sessions
-                               user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,  -- NULL = anonymous
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    widget_session_id BIGINT,                       -- FK added after widget_sessions
+    user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,  -- NULL = anonymous
 
     -- Conversation metadata
-                               title           VARCHAR(500),                   -- auto-generated from first message
-                               status          conversation_status NOT NULL DEFAULT 'active',
-                               channel         VARCHAR(50) DEFAULT 'widget',   -- widget, api, admin
-                               language        VARCHAR(10) DEFAULT 'en',
+    title           VARCHAR(500),                   -- auto-generated from first message
+    status          conversation_status NOT NULL DEFAULT 'active',
+    channel         VARCHAR(50) DEFAULT 'widget',   -- widget, api, admin
+    language        VARCHAR(10) DEFAULT 'en',
 
     -- AI context
-                               ai_model_used   VARCHAR(100),
-                               total_messages  INT DEFAULT 0,
-                               total_tokens_used INT DEFAULT 0,
+    ai_model_used   VARCHAR(100),
+    total_messages  INT DEFAULT 0,
+    total_tokens_used INT DEFAULT 0,
 
     -- Satisfaction
-                               rating          SMALLINT CHECK (rating BETWEEN 1 AND 5),
-                               feedback        TEXT,
+    rating          SMALLINT CHECK (rating BETWEEN 1 AND 5),
+    feedback        TEXT,
 
     -- Lifecycle
-                               started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                               last_message_at TIMESTAMPTZ,
-                               closed_at       TIMESTAMPTZ,
-                               created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                               updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_message_at TIMESTAMPTZ,
+    closed_at       TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE messages (
-                          id              BIGSERIAL PRIMARY KEY,
-                          uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                          conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-                          role            message_role NOT NULL,
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    conversation_id BIGINT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    role            message_role NOT NULL,
 
     -- Content
-                          content         TEXT NOT NULL,
-                          content_type    VARCHAR(50) DEFAULT 'text',     -- text, markdown, html
+    content         TEXT NOT NULL,
+    content_type    VARCHAR(50) DEFAULT 'text',     -- text, markdown, html
 
     -- AI-specific fields
-                          model_used      VARCHAR(100),
-                          tokens_prompt   INT,
-                          tokens_completion INT,
-                          latency_ms      INT,                            -- response time
+    model_used      VARCHAR(100),
+    tokens_prompt   INT,
+    tokens_completion INT,
+    latency_ms      INT,                            -- response time
 
     -- RAG context (what knowledge was retrieved for this answer)
-                          retrieved_chunks JSONB,                          -- array of chunk IDs + scores
+    retrieved_chunks JSONB,                          -- array of chunk IDs + scores
     -- Example: [{"chunk_id": 123, "score": 0.92}, {"chunk_id": 456, "score": 0.87}]
 
-                          confidence_score FLOAT,                          -- AI's confidence in the answer
+    confidence_score FLOAT,                          -- AI's confidence in the answer
 
     -- Metadata
-                          metadata        JSONB NOT NULL DEFAULT '{}',
-                          created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    metadata        JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 
@@ -567,75 +567,75 @@ CREATE TABLE messages (
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE tickets (
-                         id              BIGSERIAL PRIMARY KEY,
-                         uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                         community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                         conversation_id BIGINT REFERENCES conversations(id) ON DELETE SET NULL,
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    conversation_id BIGINT REFERENCES conversations(id) ON DELETE SET NULL,
 
     -- Ticket details
-                         ticket_number   VARCHAR(20) NOT NULL,            -- human-readable: TKT-2026-00001
-                         title           VARCHAR(500) NOT NULL,
-                         description     TEXT NOT NULL,
-                         category        VARCHAR(100),                    -- maintenance, noise, parking, etc.
-                         tags            TEXT[] DEFAULT '{}',
+    ticket_number   VARCHAR(20) NOT NULL,            -- human-readable: TKT-2026-00001
+    title           VARCHAR(500) NOT NULL,
+    description     TEXT NOT NULL,
+    category        VARCHAR(100),                    -- maintenance, noise, parking, etc.
+    tags            TEXT[] DEFAULT '{}',
 
     -- Assignment
-                         created_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                         assigned_to     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    assigned_to     BIGINT REFERENCES users(id) ON DELETE SET NULL,
 
     -- Status tracking
-                         status          ticket_status NOT NULL DEFAULT 'open',
-                         priority        ticket_priority NOT NULL DEFAULT 'medium',
-                         source          ticket_source NOT NULL DEFAULT 'chat_widget',
+    status          ticket_status NOT NULL DEFAULT 'open',
+    priority        ticket_priority NOT NULL DEFAULT 'medium',
+    source          ticket_source NOT NULL DEFAULT 'chat_widget',
 
     -- Timing
-                         due_date        TIMESTAMPTZ,
-                         first_response_at TIMESTAMPTZ,
-                         resolved_at     TIMESTAMPTZ,
-                         closed_at       TIMESTAMPTZ,
+    due_date        TIMESTAMPTZ,
+    first_response_at TIMESTAMPTZ,
+    resolved_at     TIMESTAMPTZ,
+    closed_at       TIMESTAMPTZ,
 
     -- Satisfaction
-                         resolution_notes TEXT,
-                         rating          SMALLINT CHECK (rating BETWEEN 1 AND 5),
+    resolution_notes TEXT,
+    rating          SMALLINT CHECK (rating BETWEEN 1 AND 5),
 
-                         metadata        JSONB NOT NULL DEFAULT '{}',
-                         created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                         updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                         deleted_at      TIMESTAMPTZ
+    metadata        JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ
 );
 
 CREATE TABLE ticket_comments (
-                                 id              BIGSERIAL PRIMARY KEY,
-                                 uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                                 ticket_id       BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
-                                 user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                                 message         TEXT NOT NULL,
-                                 is_internal     BOOLEAN DEFAULT FALSE,           -- internal notes vs public comments
-                                 created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                 updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    ticket_id       BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    message         TEXT NOT NULL,
+    is_internal     BOOLEAN DEFAULT FALSE,           -- internal notes vs public comments
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE ticket_attachments (
-                                    id              BIGSERIAL PRIMARY KEY,
-                                    ticket_id       BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
-                                    comment_id      BIGINT REFERENCES ticket_comments(id) ON DELETE SET NULL,
-                                    file_name       VARCHAR(500) NOT NULL,
-                                    file_url        TEXT NOT NULL,
-                                    file_size_bytes BIGINT,
-                                    mime_type       VARCHAR(100),
-                                    uploaded_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                                    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id              BIGSERIAL PRIMARY KEY,
+    ticket_id       BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    comment_id      BIGINT REFERENCES ticket_comments(id) ON DELETE SET NULL,
+    file_name       VARCHAR(500) NOT NULL,
+    file_url        TEXT NOT NULL,
+    file_size_bytes BIGINT,
+    mime_type       VARCHAR(100),
+    uploaded_by     BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Ticket status history for audit trail
 CREATE TABLE ticket_status_history (
-                                       id              BIGSERIAL PRIMARY KEY,
-                                       ticket_id       BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
-                                       old_status      ticket_status,
-                                       new_status      ticket_status NOT NULL,
-                                       changed_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                                       notes           TEXT,
-                                       created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id              BIGSERIAL PRIMARY KEY,
+    ticket_id       BIGINT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+    old_status      ticket_status,
+    new_status      ticket_status NOT NULL,
+    changed_by      BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 
@@ -644,96 +644,96 @@ CREATE TABLE ticket_status_history (
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE widget_configs (
-                                id              BIGSERIAL PRIMARY KEY,
-                                uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                                community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
 
     -- Authentication
-                                api_key         VARCHAR(64) NOT NULL UNIQUE,     -- public key for widget embed
-                                secret_key      VARCHAR(64) NOT NULL,            -- for server-side verification
+    api_key         VARCHAR(64) NOT NULL UNIQUE,     -- public key for widget embed
+    secret_key      VARCHAR(64) NOT NULL,            -- for server-side verification
 
     -- Domain restrictions
-                                allowed_origins TEXT[] DEFAULT '{}',              -- CORS: ['https://example.com']
+    allowed_origins TEXT[] DEFAULT '{}',              -- CORS: ['https://example.com']
 
     -- Widget customization
-                                theme           JSONB NOT NULL DEFAULT '{
-                                  "primaryColor": "#2563eb",
-                                  "position": "bottom-right",
-                                  "title": "Community Assistant"
-                                }',
+    theme           JSONB NOT NULL DEFAULT '{
+        "primaryColor": "#2563eb",
+        "position": "bottom-right",
+        "title": "Community Assistant"
+    }',
 
     -- Rate limiting
-                                max_messages_per_session INT DEFAULT 50,
-                                max_sessions_per_day    INT DEFAULT 1000,
+    max_messages_per_session INT DEFAULT 50,
+    max_sessions_per_day    INT DEFAULT 1000,
 
     -- Feature flags
-                                is_active       BOOLEAN NOT NULL DEFAULT TRUE,
-                                require_email   BOOLEAN DEFAULT FALSE,
-                                enable_tickets  BOOLEAN DEFAULT TRUE,
-                                enable_file_upload BOOLEAN DEFAULT FALSE,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    require_email   BOOLEAN DEFAULT FALSE,
+    enable_tickets  BOOLEAN DEFAULT TRUE,
+    enable_file_upload BOOLEAN DEFAULT FALSE,
 
-                                created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE widget_sessions (
-                                 id              BIGSERIAL PRIMARY KEY,
-                                 uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-                                 widget_config_id BIGINT NOT NULL REFERENCES widget_configs(id) ON DELETE CASCADE,
-                                 community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    id              BIGSERIAL PRIMARY KEY,
+    uuid            UUID NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    widget_config_id BIGINT NOT NULL REFERENCES widget_configs(id) ON DELETE CASCADE,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
 
     -- Visitor identification
-                                 session_token   VARCHAR(128) NOT NULL UNIQUE,
-                                 visitor_id      VARCHAR(128),                    -- fingerprint or cookie-based
-                                 user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    session_token   VARCHAR(128) NOT NULL UNIQUE,
+    visitor_id      VARCHAR(128),                    -- fingerprint or cookie-based
+    user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
 
     -- Visitor info (optional, collected during chat)
-                                 visitor_name    VARCHAR(255),
-                                 visitor_email   VARCHAR(255),
-                                 visitor_phone   VARCHAR(50),
+    visitor_name    VARCHAR(255),
+    visitor_email   VARCHAR(255),
+    visitor_phone   VARCHAR(50),
 
     -- Session context
-                                 ip_address      INET,
-                                 user_agent      TEXT,
-                                 referrer_url    TEXT,
-                                 page_url        TEXT,                            -- page where widget was opened
+    ip_address      INET,
+    user_agent      TEXT,
+    referrer_url    TEXT,
+    page_url        TEXT,                            -- page where widget was opened
 
     -- Limits
-                                 message_count   INT DEFAULT 0,
+    message_count   INT DEFAULT 0,
 
     -- Lifecycle
-                                 started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                 last_active_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                 ended_at        TIMESTAMPTZ,
-                                 created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                 updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    started_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_active_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ended_at        TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Ensure widget_sessions.community_id matches widget_configs.community_id (prevents denormalization drift)
 CREATE OR REPLACE FUNCTION check_widget_session_community() RETURNS trigger AS $$
 DECLARE
-v_expected BIGINT;
+    v_expected BIGINT;
 BEGIN
-SELECT community_id INTO v_expected
-FROM widget_configs WHERE id = NEW.widget_config_id;
+    SELECT community_id INTO v_expected
+      FROM widget_configs WHERE id = NEW.widget_config_id;
 
-IF NEW.community_id IS DISTINCT FROM v_expected THEN
+    IF NEW.community_id IS DISTINCT FROM v_expected THEN
         RAISE EXCEPTION 'widget_sessions.community_id (%) does not match widget_configs.community_id (%)',
             NEW.community_id, v_expected;
-END IF;
-RETURN NEW;
+    END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER trg_widget_session_community_check
     BEFORE INSERT OR UPDATE ON widget_sessions
-                         FOR EACH ROW
-                         EXECUTE FUNCTION check_widget_session_community();
+    FOR EACH ROW
+    EXECUTE FUNCTION check_widget_session_community();
 
 -- Add FK from conversations to widget_sessions
 ALTER TABLE conversations
     ADD CONSTRAINT fk_conversations_widget_session
-        FOREIGN KEY (widget_session_id) REFERENCES widget_sessions(id) ON DELETE SET NULL;
+    FOREIGN KEY (widget_session_id) REFERENCES widget_sessions(id) ON DELETE SET NULL;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -741,57 +741,57 @@ ALTER TABLE conversations
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE search_logs (
-                             id              BIGSERIAL PRIMARY KEY,
-                             community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                             conversation_id BIGINT REFERENCES conversations(id) ON DELETE SET NULL,
+    id              BIGSERIAL PRIMARY KEY,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    conversation_id BIGINT REFERENCES conversations(id) ON DELETE SET NULL,
 
     -- Query details
-                             query_text      TEXT NOT NULL,
-                             query_embedding vector(256),                    -- INTENTIONALLY reduced dimensionality (256 vs 1536 in knowledge_chunks)
-    -- Used for search analytics/clustering only, NOT for direct comparison with knowledge_chunks.embedding
-    -- Request reduced dims from OpenAI API: dimensions=256
+    query_text      TEXT NOT NULL,
+    query_embedding vector(256),                    -- INTENTIONALLY reduced dimensionality (256 vs 1536 in knowledge_chunks)
+                                                    -- Used for search analytics/clustering only, NOT for direct comparison with knowledge_chunks.embedding
+                                                    -- Request reduced dims from OpenAI API: dimensions=256
 
     -- Results
-                             results_count   INT,
-                             top_score       FLOAT,
-                             avg_score       FLOAT,
-                             chunk_ids       BIGINT[],                        -- IDs of returned chunks
+    results_count   INT,
+    top_score       FLOAT,
+    avg_score       FLOAT,
+    chunk_ids       BIGINT[],                        -- IDs of returned chunks
 
     -- Performance
-                             search_time_ms  INT,
-                             total_time_ms   INT,                             -- including LLM response
+    search_time_ms  INT,
+    total_time_ms   INT,                             -- including LLM response
 
     -- Quality signals
-                             was_helpful     BOOLEAN,                         -- user feedback
-                             confidence      FLOAT,
+    was_helpful     BOOLEAN,                         -- user feedback
+    confidence      FLOAT,
 
-                             metadata        JSONB NOT NULL DEFAULT '{}',
-                             created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    metadata        JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Community-level analytics (materialized, refreshed periodically)
 CREATE TABLE community_analytics (
-                                     id              BIGSERIAL PRIMARY KEY,
-                                     community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                                     date            DATE NOT NULL,
+    id              BIGSERIAL PRIMARY KEY,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    date            DATE NOT NULL,
 
     -- Usage metrics
-                                     total_conversations INT DEFAULT 0,
-                                     total_messages      INT DEFAULT 0,
-                                     total_searches      INT DEFAULT 0,
-                                     total_tickets       INT DEFAULT 0,
+    total_conversations INT DEFAULT 0,
+    total_messages      INT DEFAULT 0,
+    total_searches      INT DEFAULT 0,
+    total_tickets       INT DEFAULT 0,
 
     -- Quality metrics
-                                     avg_confidence      FLOAT,
-                                     avg_response_time_ms INT,
-                                     helpful_pct         FLOAT,
+    avg_confidence      FLOAT,
+    avg_response_time_ms INT,
+    helpful_pct         FLOAT,
 
     -- Knowledge metrics
-                                     total_chunks        INT DEFAULT 0,
-                                     total_documents     INT DEFAULT 0,
+    total_chunks        INT DEFAULT 0,
+    total_documents     INT DEFAULT 0,
 
-                                     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                     UNIQUE (community_id, date)
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (community_id, date)
 );
 
 
@@ -800,24 +800,24 @@ CREATE TABLE community_analytics (
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE audit_log (
-                           id              BIGSERIAL PRIMARY KEY,
+    id              BIGSERIAL PRIMARY KEY,
     -- Who
-                           user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
-                           company_id      BIGINT REFERENCES companies(id) ON DELETE SET NULL,
-                           community_id    BIGINT REFERENCES communities(id) ON DELETE SET NULL,
+    user_id         BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    company_id      BIGINT REFERENCES companies(id) ON DELETE SET NULL,
+    community_id    BIGINT REFERENCES communities(id) ON DELETE SET NULL,
 
     -- What
-                           action          VARCHAR(50) NOT NULL,            -- create, update, delete, login, search, etc.
-                           resource_type   VARCHAR(50) NOT NULL,            -- document, faq, ticket, user, etc.
-                           resource_id     BIGINT,
+    action          VARCHAR(50) NOT NULL,            -- create, update, delete, login, search, etc.
+    resource_type   VARCHAR(50) NOT NULL,            -- document, faq, ticket, user, etc.
+    resource_id     BIGINT,
 
     -- Details
-                           old_values      JSONB,
-                           new_values      JSONB,
-                           ip_address      INET,
-                           user_agent      TEXT,
+    old_values      JSONB,
+    new_values      JSONB,
+    ip_address      INET,
+    user_agent      TEXT,
 
-                           created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Partition audit_log by month for performance (keeps queries fast)
@@ -830,25 +830,25 @@ CREATE TABLE audit_log (
 -- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE ai_suggested_faqs (
-                                   id              BIGSERIAL PRIMARY KEY,
-                                   community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
-                                   question        TEXT NOT NULL,
-                                   suggested_answer TEXT NOT NULL,
-                                   source_chunks   BIGINT[],                        -- chunk IDs that informed this
-                                   frequency       INT DEFAULT 1,                   -- how often this question was asked
-                                   status          suggested_faq_status NOT NULL DEFAULT 'pending',
-                                   approved_by     BIGINT REFERENCES users(id),
-                                   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                                   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id              BIGSERIAL PRIMARY KEY,
+    community_id    BIGINT NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+    question        TEXT NOT NULL,
+    suggested_answer TEXT NOT NULL,
+    source_chunks   BIGINT[],                        -- chunk IDs that informed this
+    frequency       INT DEFAULT 1,                   -- how often this question was asked
+    status          suggested_faq_status NOT NULL DEFAULT 'pending',
+    approved_by     BIGINT REFERENCES users(id),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE document_summaries (
-                                    id              BIGSERIAL PRIMARY KEY,
-                                    document_id     BIGINT NOT NULL REFERENCES documents(id) ON DELETE CASCADE UNIQUE,
-                                    summary_short   TEXT,                            -- 1-2 sentences
-                                    summary_long    TEXT,                            -- full summary
-                                    key_topics      TEXT[],
-                                    generated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id              BIGSERIAL PRIMARY KEY,
+    document_id     BIGINT NOT NULL REFERENCES documents(id) ON DELETE CASCADE UNIQUE,
+    summary_short   TEXT,                            -- 1-2 sentences
+    summary_long    TEXT,                            -- full summary
+    key_topics      TEXT[],
+    generated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 
@@ -1035,14 +1035,14 @@ CREATE POLICY community_isolation_tickets ON tickets
 CREATE OR REPLACE FUNCTION generate_ticket_number(p_community_id BIGINT)
 RETURNS VARCHAR(20) AS $$
 DECLARE
-v_seq BIGINT;
+    v_seq BIGINT;
 BEGIN
-UPDATE communities
-SET ticket_counter = ticket_counter + 1
-WHERE id = p_community_id
+    UPDATE communities
+       SET ticket_counter = ticket_counter + 1
+     WHERE id = p_community_id
     RETURNING ticket_counter INTO v_seq;
 
-RETURN 'TKT-' || EXTRACT(YEAR FROM NOW())::TEXT || '-' || LPAD(v_seq::TEXT, 5, '0');
+    RETURN 'TKT-' || EXTRACT(YEAR FROM NOW())::TEXT || '-' || LPAD(v_seq::TEXT, 5, '0');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1051,8 +1051,8 @@ CREATE OR REPLACE FUNCTION set_ticket_number() RETURNS trigger AS $$
 BEGIN
     IF NEW.ticket_number IS NULL OR NEW.ticket_number = '' THEN
         NEW.ticket_number := generate_ticket_number(NEW.community_id);
-END IF;
-RETURN NEW;
+    END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1065,7 +1065,7 @@ CREATE TRIGGER trg_ticket_number
 CREATE OR REPLACE FUNCTION update_timestamp() RETURNS trigger AS $$
 BEGIN
     NEW.updated_at = NOW();
-RETURN NEW;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1088,20 +1088,20 @@ CREATE TRIGGER trg_ingestion_updated      BEFORE UPDATE ON ingestion_jobs FOR EA
 CREATE OR REPLACE FUNCTION cascade_soft_delete_to_knowledge_sources() RETURNS trigger AS $$
 BEGIN
     IF NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL THEN
-UPDATE knowledge_sources
-SET deleted_at = NEW.deleted_at,
-    is_active = FALSE
-WHERE source_type = TG_ARGV[0]::source_type
+        UPDATE knowledge_sources
+           SET deleted_at = NEW.deleted_at,
+               is_active = FALSE
+         WHERE source_type = TG_ARGV[0]::source_type
            AND source_id = OLD.id;
--- Also handle un-delete (restoring a soft-deleted row)
-ELSIF NEW.deleted_at IS NULL AND OLD.deleted_at IS NOT NULL THEN
-UPDATE knowledge_sources
-SET deleted_at = NULL,
-    is_active = TRUE
-WHERE source_type = TG_ARGV[0]::source_type
+    -- Also handle un-delete (restoring a soft-deleted row)
+    ELSIF NEW.deleted_at IS NULL AND OLD.deleted_at IS NOT NULL THEN
+        UPDATE knowledge_sources
+           SET deleted_at = NULL,
+               is_active = TRUE
+         WHERE source_type = TG_ARGV[0]::source_type
            AND source_id = OLD.id;
-END IF;
-RETURN NEW;
+    END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1129,12 +1129,12 @@ CREATE TRIGGER trg_emails_soft_delete_cascade
 CREATE OR REPLACE FUNCTION cascade_deactivate_chunks() RETURNS trigger AS $$
 BEGIN
     IF NEW.deleted_at IS NOT NULL AND OLD.deleted_at IS NULL THEN
-UPDATE knowledge_chunks
-SET is_active = FALSE
-WHERE source_type = NEW.source_type
-  AND source_id = NEW.source_id;
-END IF;
-RETURN NEW;
+        UPDATE knowledge_chunks
+           SET is_active = FALSE
+         WHERE source_type = NEW.source_type
+           AND source_id = NEW.source_id;
+    END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1146,12 +1146,12 @@ CREATE TRIGGER trg_knowledge_source_soft_delete
 -- Keep conversations.total_messages and total_tokens_used in sync
 CREATE OR REPLACE FUNCTION update_conversation_counters() RETURNS trigger AS $$
 BEGIN
-UPDATE conversations
-SET total_messages = total_messages + 1,
-    total_tokens_used = total_tokens_used + COALESCE(NEW.tokens_prompt, 0) + COALESCE(NEW.tokens_completion, 0),
-    last_message_at = NEW.created_at
-WHERE id = NEW.conversation_id;
-RETURN NEW;
+    UPDATE conversations
+       SET total_messages = total_messages + 1,
+           total_tokens_used = total_tokens_used + COALESCE(NEW.tokens_prompt, 0) + COALESCE(NEW.tokens_completion, 0),
+           last_message_at = NEW.created_at
+     WHERE id = NEW.conversation_id;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1166,8 +1166,8 @@ BEGIN
     IF OLD.status IS DISTINCT FROM NEW.status THEN
         INSERT INTO ticket_status_history (ticket_id, old_status, new_status)
         VALUES (NEW.id, OLD.status, NEW.status);
-END IF;
-RETURN NEW;
+    END IF;
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
